@@ -66,9 +66,8 @@
   <div id="app"></div>
   <script>
     // ===== CONFIG =====
-    const SHEET_ID = "11CumsNUPsikI7MSu2d_p6ebV05fpwW9XtuBGFuI7mWE";
-    const GID = "1657314990";
-    const CSV_URL_EXPORT = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/export?format=csv&gid=" + GID;
+    const CSV_URL_PUB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQwYDCQSJ19WowC2l_nBvXaK70nat584JRqyWZNGEzwsFfaK50e1J84CwT86FRzAxjKBTdwHQ5gYad2/pub?gid=1657314990&single=true&output=csv";
+    const CSV_URL_EXPORT = "https://docs.google.com/spreadsheets/d/11CumsNUPsikI7MSu2d_p6ebV05fpwW9XtuBGFuI7mWE/export?format=csv&gid=1657314990";
 
     // ===== STATE =====
     var state = {
@@ -167,10 +166,16 @@
     // ===== DATA FETCH =====
     function fetchData() {
       state.loading = true; state.error = null; render();
-      fetch(CSV_URL_EXPORT)
+      fetch(CSV_URL_PUB)
         .then(function(res){
-          if(!res.ok) throw new Error("HTTP "+res.status);
+          if(!res.ok) throw new Error("pub failed");
           return res.text();
+        })
+        .catch(function(){
+          return fetch(CSV_URL_EXPORT).then(function(res){
+            if(!res.ok) throw new Error("HTTP "+res.status);
+            return res.text();
+          });
         })
         .then(function(text){
           if(text.trim().charAt(0)==='<') throw new Error("CSVではなくHTMLが返されました。共有設定を確認してください。");
