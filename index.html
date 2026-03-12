@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>商談管理ダッシュボード</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Noto Sans JP', 'Helvetica Neue', sans-serif; background: #f8fafc; color: #0f172a; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    table { width: 100%; border-collapse: collapse; }
+    select { appearance: none; -webkit-appearance: none; }
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo, useEffect, useCallback } = React;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } = Recharts;
+
+    const SHEET_ID = "11CumsNUPsikI7MSu2d_p6ebV05fpwW9XtuBGFuI7mWE";
+    const GID = "1657314990";
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+    function parseCSV(text) {
+      const rows = []; let row = []; let field = ""; let inQ = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQ) {
+          if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+          else if (c === '"') inQ = false;
+          else field += c;
+        } else {
+          if (c === '"') inQ = true;
+          else if (c === ',') { row.push(field.trim()); field = ""; }
+          else if (c === '\n' || (c === '\r' && text[i+1] === '\n')) {
+            row.push(field.trim()); field = "";
+            if (c === '\r') i++;
+            if (row.some(f => f !== "")) rows.push(row);
+            row = [];
+          } else field += c;
+        }
+      }
+      row.push(field.trim());
+      if (row.some(f => f !== "")) rows.push(row);
+      return rows;
+    }
+
+    function mapRow(headers, row) {
+      const get = (name) => {
+        const idx = headers.findIndex(h => h && h.includes(name));
+        return idx >= 0 ? (row[idx] || "") : "";
+      };
+      return {
+        決定者: get("商談決定者"), client: get("クライアント名"), 施設形態: get("施設形態"),
+        次の動き: get("次の動き"), サービス種別: get("サービス種別"), 見込み: get("見込み"),
+        商談日: get("商談日"), 商談担当者: get("商談担当者"), 結果: get("結果"), 回収日: get("回収日"),
+      };
+    }
+
+    const parseDate = (s) => {
+      if (!s || /メール|本社|商談時間/.test(s)) return null;
+      const m = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+      return m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
+    };
+    const getMonth = (d) => {
+      const dt = parseDate(d);
+      return dt ? `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}` : null;
+    };
+
+    const getStatus = (r) => {
+      if (r.結果 === "未実施" || r.次の動き === "商談決定日程未定") return "商談待ち";
+      if (!r.結果 && !r.商談担当者 && !parseDate(r.商談日)) return "商談待ち";
+      if (!r.結果 && parseDate(r.商談日) && parseDate(r.商談日) > new Date()) return "商談予定";
+      if (r.結果 === "検討") return "検討中";
+      if (r.結果?.includes("契約")) return "契約";
+      if (r.結果 === "失注") return "失注";
+      if (!r.結果 && r.商談担当者) return "商談済(結果待ち)";
+      return "商談待ち";
+    };
+
+    const SC = { "商談待ち":"#94a3b8","商談予定":"#60a5fa","検討中":"#fbbf24","契約":"#34d399","失注":"#f87171","商談済(結果待ち)":"#a78bfa" };
+
+    const Badge = ({status}) => (
+      <span style={{display:"inline-block",padding:"2px 10px",borderRadius:20,fontSize:11,fontWeight:600,
+        background:SC[status]||"#e2e8f0",color:status==="契約"||status==="失注"?"#fff":"#1e293b"}}>{status}</span>
+    );
+
+    function App() {
+      const [rawData, setRawData] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [lastFetched, setLastFetched] = useState(null);
+      const [selMonth, setSelMonth] = useState("all");
+      const [selPerson, setSelPerson] = useState("all");
+      const [tab, setTab] = useState("overview");
+
+      const fetchData = useCallback(async () => {
+        setLoading(true); setError(null);
+        try {
+          const res = await fetch(CSV_URL);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const text = await res.text();
+          const parsed = parseCSV(text);
+          if (parsed.length < 2) throw new Error("データが見つかりません");
+          const headers = parsed[0];
+          const rows = parsed.slice(1).map(r => mapRow(headers, r)).filter(r => r.決定者 || r.client);
+          setRawData(rows); setLastFetched(new Date());
+        } catch(e) { setError(e.message); }
+        finally { setLoading(false); }
+      }, []);
+
+      useEffect(() => { fetchData(); }, [fetchData]);
+      useEffect(() => { const iv = setInterval(fetchData, 5*60*1000); return () => clearInterval(iv); }, [fetchData]);
+
+      const enriched = useMemo(() => rawData.map(r => ({...r, status:getStatus(r), month:getMonth(r.商談日)})), [rawData]);
+      const allMonths = useMemo(() => [...new Set(enriched.map(r=>r.month).filter(Boolean))].sort(), [enriched]);
+      const all決定者 = useMemo(() => [...new Set(enriched.map(r=>r.決定者).filter(Boolean))].sort(), [enriched]);
+      const all担当者 = useMemo(() => [...new Set(enriched.map(r=>r.商談担当者).filter(Boolean))].sort(), [enriched]);
+      const allPeople = useMemo(() => [...new Set([...all決定者,...all担当者])].sort(), [all決定者,all担当者]);
+
+      const filtered = useMemo(() => enriched.filter(r => {
+        if (selMonth !== "all" && r.month !== selMonth) return false;
+        if (selPerson !== "all" && r.決定者 !== selPerson && r.商談担当者 !== selPerson) return false;
+        return true;
+      }), [enriched, selMonth, selPerson]);
+
+      const kpis = useMemo(() => {
+        const t = filtered.length;
+        const w = filtered.filter(r => r.status==="商談待ち"||r.status==="商談予定").length;
+        const c = filtered.filter(r => r.status==="契約").length;
+        const l = filtered.filter(r => r.status==="失注").length;
+        const k = filtered.filter(r => r.status==="検討中").length;
+        const wr = (c+l)>0 ? Math.round(c/(c+l)*100) : 0;
+        return {total:t,waiting:w,contracted:c,lost:l,considering:k,winRate:wr};
+      }, [filtered]);
+
+      const statusDist = useMemo(() => {
+        const m = {}; filtered.forEach(r => { m[r.status]=(m[r.status]||0)+1; });
+        return Object.entries(m).map(([name,value]) => ({name,value}));
+      }, [filtered]);
+
+      const byPerson = useMemo(() => {
+        const m = {};
+        filtered.forEach(r => {
+          const k = r.商談担当者||"未割当";
+          if(!m[k]) m[k]={name:k,契約:0,失注:0,検討中:0,商談待ち:0};
+          if(r.status==="契約") m[k].契約++;
+          else if(r.status==="失注") m[k].失注++;
+          else if(r.status==="検討中") m[k].検討中++;
+          else m[k].商談待ち++;
+        });
+        return Object.values(m);
+      }, [filtered]);
+
+      const by決定者 = useMemo(() => {
+        const m = {};
+        filtered.forEach(r => { if(!m[r.決定者]) m[r.決定者]={name:r.決定者,count:0}; m[r.決定者].count++; });
+        return Object.values(m).sort((a,b) => b.count-a.count);
+      }, [filtered]);
+
+      const monthlyTrend = useMemo(() => {
+        const m = {};
+        enriched.forEach(r => {
+          const mo = r.month; if(!mo) return;
+          if(!m[mo]) m[mo]={month:mo,契約:0,失注:0,検討中:0};
+          if(r.status==="契約") m[mo].契約++;
+          else if(r.status==="失注") m[mo].失注++;
+          else if(r.status==="検討中") m[mo].検討中++;
+        });
+        return Object.values(m).sort((a,b) => a.month.localeCompare(b.month));
+      }, [enriched]);
+
+      const ts = (t2) => ({
+        padding:"8px 20px",cursor:"pointer",fontSize:13,fontWeight:tab===t2?700:400,
+        borderBottom:tab===t2?"2px solid #0f172a":"2px solid transparent",
+        color:tab===t2?"#0f172a":"#94a3b8",background:"none",border:"none"
+      });
+
+      if (loading && rawData.length===0) return (
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh"}}>
+          <div style={{width:40,height:40,border:"4px solid #e2e8f0",borderTopColor:"#3b82f6",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+        </div>
+      );
+
+      return (
+        <div style={{minHeight:"100vh"}}>
+          {/* Header */}
+          <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)",padding:"24px 32px 18px",color:"#fff"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+              <div>
+                <div style={{fontSize:11,letterSpacing:3,textTransform:"uppercase",opacity:0.6,marginBottom:4}}>Pipeline Dashboard — Live</div>
+                <h1 style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>商談管理ダッシュボード</h1>
+                <div style={{fontSize:11,opacity:0.5,marginTop:4,display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:error?"#f87171":"#34d399",display:"inline-block"}}/>
+                  {lastFetched ? `最終更新: ${lastFetched.toLocaleTimeString("ja-JP")}` : "取得中..."}
+                  <span style={{opacity:0.7}}>（5分毎に自動更新）</span>
+                  <button onClick={fetchData} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",padding:"2px 10px",borderRadius:4,fontSize:11,cursor:"pointer"}}>↻ 今すぐ更新</button>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+                <select value={selMonth} onChange={e=>setSelMonth(e.target.value)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:13,outline:"none"}}>
+                  <option value="all" style={{color:"#0f172a"}}>全期間</option>
+                  {allMonths.map(m=><option key={m} value={m} style={{color:"#0f172a"}}>{m}</option>)}
+                </select>
+                <select value={selPerson} onChange={e=>setSelPerson(e.target.value)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:13,outline:"none"}}>
+                  <option value="all" style={{color:"#0f172a"}}>全担当者</option>
+                  {allPeople.map(p=><option key={p} value={p} style={{color:"#0f172a"}}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{display:"flex",gap:4,padding:"0 32px",borderBottom:"1px solid #e2e8f0",background:"#fff"}}>
+            <button style={ts("overview")} onClick={()=>setTab("overview")}>概要</button>
+            <button style={ts("details")} onClick={()=>setTab("details")}>案件一覧</button>
+            <button style={ts("analytics")} onClick={()=>setTab("analytics")}>アナリティクス</button>
+          </div>
+
+          {error && (
+            <div style={{margin:"16px 32px",padding:"12px 16px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,color:"#991b1b",fontSize:13}}>
+              ⚠ データ取得エラー: {error}
+              <div style={{fontSize:11,marginTop:4,color:"#b91c1c"}}>スプレッドシートの共有設定を確認してください。</div>
+            </div>
+          )}
+
+          <div style={{padding:"24px 32px",maxWidth:1200}}>
+            {/* KPIs */}
+            {tab !== "details" && (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))",gap:16,marginBottom:28}}>
+                {[
+                  {label:"全案件",value:kpis.total,color:"#0f172a",sub:"件"},
+                  {label:"商談待ち",value:kpis.waiting,color:"#60a5fa",sub:"件"},
+                  {label:"契約",value:kpis.contracted,color:"#34d399",sub:"件"},
+                  {label:"失注",value:kpis.lost,color:"#f87171",sub:"件"},
+                  {label:"検討中",value:kpis.considering,color:"#fbbf24",sub:"件"},
+                  {label:"受注率",value:kpis.winRate,color:"#8b5cf6",sub:"%"},
+                ].map((k,i) => (
+                  <div key={i} style={{background:"#fff",borderRadius:12,padding:"20px 20px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",borderLeft:`4px solid ${k.color}`}}>
+                    <div style={{fontSize:11,color:"#64748b",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>{k.label}</div>
+                    <div style={{fontSize:32,fontWeight:800,color:k.color,lineHeight:1}}>{k.value}<span style={{fontSize:14,fontWeight:400,marginLeft:2}}>{k.sub}</span></div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Overview */}
+            {tab === "overview" && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>ステータス別分布</h3>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart><Pie data={statusDist} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label={({name,value})=>`${name}: ${value}`} style={{fontSize:11}}>
+                      {statusDist.map((e,i)=><Cell key={i} fill={SC[e.name]||"#6366f1"}/>)}
+                    </Pie><Tooltip/></PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>商談担当者別 結果内訳</h3>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={byPerson} layout="vertical" margin={{left:60}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+                      <XAxis type="number" style={{fontSize:11}}/><YAxis type="category" dataKey="name" style={{fontSize:12}}/>
+                      <Tooltip/><Bar dataKey="契約" stackId="a" fill="#34d399"/><Bar dataKey="失注" stackId="a" fill="#f87171"/>
+                      <Bar dataKey="検討中" stackId="a" fill="#fbbf24"/><Bar dataKey="商談待ち" stackId="a" fill="#94a3b8" radius={[0,4,4,0]}/>
+                      <Legend wrapperStyle={{fontSize:11}}/>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>商談決定者別 アポ獲得数</h3>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={by決定者} margin={{left:20}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" style={{fontSize:12}}/>
+                      <YAxis style={{fontSize:11}}/><Tooltip/><Bar dataKey="count" fill="#3b82f6" radius={[6,6,0,0]} name="獲得件数"/>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>月別 商談推移</h3>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={monthlyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="month" style={{fontSize:11}}/>
+                      <YAxis style={{fontSize:11}}/><Tooltip/>
+                      <Bar dataKey="契約" stackId="a" fill="#34d399"/><Bar dataKey="失注" stackId="a" fill="#f87171"/>
+                      <Bar dataKey="検討中" stackId="a" fill="#fbbf24"/><Legend wrapperStyle={{fontSize:11}}/>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Details */}
+            {tab === "details" && (
+              <div style={{background:"#fff",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",overflow:"auto"}}>
+                <table style={{fontSize:12}}>
+                  <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                    {["ステータス","決定者","クライアント","施設形態","サービス","見込み","商談日","商談担当","結果","回収日"].map(h=>
+                      <th key={h} style={{padding:"12px 10px",textAlign:"left",fontWeight:700,color:"#475569",fontSize:11,whiteSpace:"nowrap"}}>{h}</th>
+                    )}
+                  </tr></thead>
+                  <tbody>
+                    {filtered.map((r,i) => (
+                      <tr key={i} style={{borderBottom:"1px solid #f1f5f9"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <td style={{padding:10}}><Badge status={r.status}/></td>
+                        <td style={{padding:10,fontWeight:500}}>{r.決定者}</td>
+                        <td style={{padding:10,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.client}</td>
+                        <td style={{padding:10,color:"#64748b"}}>{r.施設形態||"—"}</td>
+                        <td style={{padding:10}}>{r.サービス種別||"—"}</td>
+                        <td style={{padding:10}}>{r.見込み||"—"}</td>
+                        <td style={{padding:10,whiteSpace:"nowrap"}}>{r.商談日||"—"}</td>
+                        <td style={{padding:10,fontWeight:500}}>{r.商談担当者||"—"}</td>
+                        <td style={{padding:10}}>{r.結果||"—"}</td>
+                        <td style={{padding:10,whiteSpace:"nowrap"}}>{r.回収日||"—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Analytics */}
+            {tab === "analytics" && (
+              <div style={{display:"flex",flexDirection:"column",gap:20}}>
+                {/* Funnel */}
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 20px",color:"#334155"}}>コンバージョンファネル</h3>
+                  {(() => {
+                    const t=filtered.length;
+                    const d=filtered.filter(r=>r.status!=="商談待ち"&&r.status!=="商談予定").length;
+                    const c=filtered.filter(r=>r.status==="契約").length;
+                    return [{label:"アポ獲得",count:t,pct:100},{label:"商談実施",count:d,pct:t?Math.round(d/t*100):0},{label:"契約締結",count:c,pct:t?Math.round(c/t*100):0}].map((s,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:16,marginBottom:8}}>
+                        <div style={{width:90,fontSize:12,fontWeight:600,color:"#475569",textAlign:"right"}}>{s.label}</div>
+                        <div style={{flex:1,background:"#f1f5f9",borderRadius:8,height:36,overflow:"hidden"}}>
+                          <div style={{width:`${s.pct}%`,height:"100%",background:i===0?"#60a5fa":i===1?"#a78bfa":"#34d399",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:12,transition:"width 0.8s"}}>
+                            <span style={{fontSize:13,fontWeight:700,color:"#fff"}}>{s.count}件 ({s.pct}%)</span>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+                  {/* 担当者パフォーマンス */}
+                  <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>商談担当者 パフォーマンス</h3>
+                    {all担当者.map(p => {
+                      const rows=filtered.filter(r=>r.商談担当者===p);
+                      const w=rows.filter(r=>r.status==="契約").length;
+                      const l=rows.filter(r=>r.status==="失注").length;
+                      const rate=(w+l)>0?Math.round(w/(w+l)*100):0;
+                      return (
+                        <div key={p} style={{padding:16,background:"#f8fafc",borderRadius:10,border:"1px solid #e2e8f0",marginBottom:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                            <span style={{fontWeight:700,fontSize:14}}>{p}</span>
+                            <span style={{fontSize:12,color:"#64748b"}}>担当 {rows.length}件</span>
+                          </div>
+                          <div style={{display:"flex",gap:16,fontSize:12}}>
+                            <span style={{color:"#34d399"}}>契約 {w}</span>
+                            <span style={{color:"#f87171"}}>失注 {l}</span>
+                            <span style={{color:"#8b5cf6",fontWeight:600}}>受注率 {rate}%</span>
+                          </div>
+                          <div style={{marginTop:8,background:"#e2e8f0",borderRadius:4,height:6,overflow:"hidden"}}>
+                            <div style={{width:`${rate}%`,height:"100%",background:"linear-gradient(90deg,#34d399,#3b82f6)",borderRadius:4}}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ランキング */}
+                  <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>決定者別 アポ獲得ランキング</h3>
+                    {by決定者.map((p,i) => (
+                      <div key={p.name} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"#f8fafc",borderRadius:8,marginBottom:8}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                          background:i===0?"#fbbf24":i===1?"#94a3b8":"#d97706",color:"#fff",fontSize:12,fontWeight:700}}>{i+1}</div>
+                        <div style={{flex:1,fontWeight:600,fontSize:13}}>{p.name}</div>
+                        <div style={{fontSize:20,fontWeight:800,color:"#0f172a"}}>{p.count}<span style={{fontSize:11,fontWeight:400,marginLeft:2}}>件</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 施設形態 */}
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>施設形態別 分布</h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={(() => {
+                      const m={}; filtered.forEach(r=>{const k=r.施設形態||"未分類"; m[k]=(m[k]||0)+1;});
+                      return Object.entries(m).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+                    })()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+                      <XAxis dataKey="name" style={{fontSize:10}} angle={-20} textAnchor="end" height={50}/>
+                      <YAxis style={{fontSize:11}}/><Tooltip/><Bar dataKey="value" fill="#6366f1" radius={[6,6,0,0]} name="件数"/>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* 要フォロー */}
+                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>⚠ 要フォロー案件</h3>
+                  {filtered.filter(r=>r.status==="検討中"||r.status==="商談待ち"||r.status==="商談予定").map((r,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"#fffbeb",borderRadius:8,border:"1px solid #fde68a",marginBottom:8}}>
+                      <Badge status={r.status}/>
+                      <div style={{flex:1,fontSize:13,fontWeight:500}}>{r.client}</div>
+                      <div style={{fontSize:11,color:"#92400e"}}>{r.回収日?`回収: ${r.回収日}`:r.商談日?`商談: ${r.商談日}`:"日程未定"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
