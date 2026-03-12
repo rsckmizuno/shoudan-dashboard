@@ -101,16 +101,46 @@
       return rows;
     }
 
+    // Debug: log headers on first load
+    var headersLogged = false;
+
     function mapRow(headers, row) {
-      function get(name) {
+      if (!headersLogged) {
+        console.log("=== HEADERS ===");
+        for(var h=0;h<headers.length;h++) console.log("Col "+h+": ["+headers[h]+"]");
+        headersLogged = true;
+      }
+      // Find column by name - search from RIGHT for certain fields to avoid wrong matches
+      function get(name, fromRight) {
         var idx = -1;
-        for(var i=0;i<headers.length;i++){if(headers[i]&&headers[i].indexOf(name)>=0){idx=i;break;}}
+        if (fromRight) {
+          for(var i=headers.length-1;i>=0;i--){
+            if(headers[i]){
+              var clean = headers[i].replace(/[\n\r\s]/g,'');
+              if(clean === name || clean.indexOf(name)>=0){idx=i;break;}
+            }
+          }
+        } else {
+          for(var i=0;i<headers.length;i++){
+            if(headers[i]){
+              var clean = headers[i].replace(/[\n\r\s]/g,'');
+              if(clean === name || clean.indexOf(name)>=0){idx=i;break;}
+            }
+          }
+        }
         return idx >= 0 ? (row[idx] || "") : "";
       }
       return {
-        "決定者": get("商談決定者"), client: get("クライアント名"), "施設形態": get("施設形態"),
-        "次の動き": get("次の動き"), "サービス種別": get("サービス種別"), "見込み": get("見込み"),
-        "商談日": get("商談日"), "商談担当者": get("商談担当者"), "結果": get("結果"), "回収日": get("回収日"),
+        "決定者": get("商談決定者", false),
+        client: get("クライアント名", false),
+        "施設形態": get("施設形態", false),
+        "次の動き": get("次の動き", false),
+        "サービス種別": get("サービス種別", false),
+        "見込み": get("見込み", false),
+        "商談日": get("商談日", false),
+        "商談担当者": get("商談担当者", true),
+        "結果": get("結果", true),
+        "回収日": get("回収日", true),
       };
     }
 
