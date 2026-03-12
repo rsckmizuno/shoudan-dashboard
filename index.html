@@ -1,38 +1,87 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>商談管理ダッシュボード</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap');
-    body { font-family: 'Noto Sans JP', 'Helvetica Neue', sans-serif; background: #f8fafc; color: #0f172a; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    table { width: 100%; border-collapse: collapse; }
-    select { appearance: none; -webkit-appearance: none; }
-    ::-webkit-scrollbar { height: 6px; width: 6px; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Noto Sans JP','Helvetica Neue',sans-serif;background:#f8fafc;color:#0f172a}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .header{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:24px 32px 18px;color:#fff}
+    .header h1{font-size:24px;font-weight:800;letter-spacing:-0.5px}
+    .header-sub{font-size:11px;opacity:0.5;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .header-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
+    .label-sm{font-size:11px;letter-spacing:3px;text-transform:uppercase;opacity:0.6;margin-bottom:4px}
+    .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .filters select{padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;outline:none;font-family:inherit}
+    .filters select option{color:#0f172a}
+    .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+    .dot-ok{background:#34d399}.dot-err{background:#f87171}
+    .btn-refresh{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit}
+    .tabs{display:flex;gap:4px;padding:0 32px;border-bottom:1px solid #e2e8f0;background:#fff}
+    .tab-btn{padding:8px 20px;cursor:pointer;font-size:13px;border:none;background:none;border-bottom:2px solid transparent;color:#94a3b8;font-family:inherit;transition:all 0.2s}
+    .tab-btn.active{font-weight:700;color:#0f172a;border-bottom-color:#0f172a}
+    .content{padding:24px 32px;max-width:1200px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px}
+    .kpi-card{background:#fff;border-radius:12px;padding:20px 20px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+    .kpi-label{font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+    .kpi-value{font-size:32px;font-weight:800;line-height:1}
+    .kpi-unit{font-size:14px;font-weight:400;margin-left:2px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+    .card h3{font-size:14px;font-weight:700;margin:0 0 16px;color:#334155}
+    .chart-wrap{position:relative;height:260px}
+    .tbl-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:auto}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    thead tr{background:#f8fafc;border-bottom:2px solid #e2e8f0}
+    th{padding:12px 10px;text-align:left;font-weight:700;color:#475569;font-size:11px;white-space:nowrap}
+    td{padding:10px}
+    tbody tr{border-bottom:1px solid #f1f5f9;transition:background 0.15s}
+    tbody tr:hover{background:#f8fafc}
+    .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.5px}
+    .funnel-row{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+    .funnel-label{width:90px;font-size:12px;font-weight:600;color:#475569;text-align:right}
+    .funnel-bar-bg{flex:1;background:#f1f5f9;border-radius:8px;height:36px;overflow:hidden}
+    .funnel-bar{height:100%;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:12px;transition:width 0.8s}
+    .funnel-bar span{font-size:13px;font-weight:700;color:#fff}
+    .perf-card{padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:12px}
+    .perf-header{display:flex;justify-content:space-between;margin-bottom:8px}
+    .perf-stats{display:flex;gap:16px;font-size:12px}
+    .perf-bar-bg{margin-top:8px;background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden}
+    .perf-bar{height:100%;background:linear-gradient(90deg,#34d399,#3b82f6);border-radius:4px}
+    .rank-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f8fafc;border-radius:8px;margin-bottom:8px}
+    .rank-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700}
+    .follow-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;margin-bottom:8px}
+    .error-box{margin:16px 32px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:13px}
+    .spinner{display:flex;justify-content:center;align-items:center;height:300px}
+    .spinner-circle{width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite}
+    .ellipsis{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    @media(max-width:768px){.grid-2{grid-template-columns:1fr}.content{padding:16px}.header{padding:16px 16px 12px}.tabs{padding:0 16px}}
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useMemo, useEffect, useCallback } = React;
-    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } = Recharts;
-
+  <div id="app"></div>
+  <script>
+    // ===== CONFIG =====
     const SHEET_ID = "11CumsNUPsikI7MSu2d_p6ebV05fpwW9XtuBGFuI7mWE";
     const GID = "1657314990";
-    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+    const CSV_URL_EXPORT = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/export?format=csv&gid=" + GID;
 
+    // ===== STATE =====
+    var state = {
+      data: [], loading: true, error: null, lastFetched: null,
+      selMonth: "all", selPerson: "all", tab: "overview"
+    };
+    var charts = {};
+
+    // ===== CSV PARSER =====
     function parseCSV(text) {
-      const rows = []; let row = []; let field = ""; let inQ = false;
-      for (let i = 0; i < text.length; i++) {
-        const c = text[i];
+      var rows = [], row = [], field = "", inQ = false;
+      for (var i = 0; i < text.length; i++) {
+        var c = text[i];
         if (inQ) {
           if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
           else if (c === '"') inQ = false;
@@ -43,391 +92,380 @@
           else if (c === '\n' || (c === '\r' && text[i+1] === '\n')) {
             row.push(field.trim()); field = "";
             if (c === '\r') i++;
-            if (row.some(f => f !== "")) rows.push(row);
+            if (row.some(function(f){return f})) rows.push(row);
             row = [];
           } else field += c;
         }
       }
       row.push(field.trim());
-      if (row.some(f => f !== "")) rows.push(row);
+      if (row.some(function(f){return f})) rows.push(row);
       return rows;
     }
 
     function mapRow(headers, row) {
-      const get = (name) => {
-        const idx = headers.findIndex(h => h && h.includes(name));
+      function get(name) {
+        var idx = -1;
+        for(var i=0;i<headers.length;i++){if(headers[i]&&headers[i].indexOf(name)>=0){idx=i;break;}}
         return idx >= 0 ? (row[idx] || "") : "";
-      };
+      }
       return {
-        決定者: get("商談決定者"), client: get("クライアント名"), 施設形態: get("施設形態"),
-        次の動き: get("次の動き"), サービス種別: get("サービス種別"), 見込み: get("見込み"),
-        商談日: get("商談日"), 商談担当者: get("商談担当者"), 結果: get("結果"), 回収日: get("回収日"),
+        "決定者": get("商談決定者"), client: get("クライアント名"), "施設形態": get("施設形態"),
+        "次の動き": get("次の動き"), "サービス種別": get("サービス種別"), "見込み": get("見込み"),
+        "商談日": get("商談日"), "商談担当者": get("商談担当者"), "結果": get("結果"), "回収日": get("回収日"),
       };
     }
 
-    const parseDate = (s) => {
+    function parseDate(s) {
       if (!s || /メール|本社|商談時間/.test(s)) return null;
-      const m = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+      var m = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
       return m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
-    };
-    const getMonth = (d) => {
-      const dt = parseDate(d);
-      return dt ? `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}` : null;
-    };
-
-    const getStatus = (r) => {
-      if (r.結果 === "未実施" || r.次の動き === "商談決定日程未定") return "商談待ち";
-      if (!r.結果 && !r.商談担当者 && !parseDate(r.商談日)) return "商談待ち";
-      if (!r.結果 && parseDate(r.商談日) && parseDate(r.商談日) > new Date()) return "商談予定";
-      if (r.結果 === "検討") return "検討中";
-      if (r.結果?.includes("契約")) return "契約";
-      if (r.結果 === "失注") return "失注";
-      if (!r.結果 && r.商談担当者) return "商談済(結果待ち)";
-      return "商談待ち";
-    };
-
-    const SC = { "商談待ち":"#94a3b8","商談予定":"#60a5fa","検討中":"#fbbf24","契約":"#34d399","失注":"#f87171","商談済(結果待ち)":"#a78bfa" };
-
-    const Badge = ({status}) => (
-      <span style={{display:"inline-block",padding:"2px 10px",borderRadius:20,fontSize:11,fontWeight:600,
-        background:SC[status]||"#e2e8f0",color:status==="契約"||status==="失注"?"#fff":"#1e293b"}}>{status}</span>
-    );
-
-    function App() {
-      const [rawData, setRawData] = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState(null);
-      const [lastFetched, setLastFetched] = useState(null);
-      const [selMonth, setSelMonth] = useState("all");
-      const [selPerson, setSelPerson] = useState("all");
-      const [tab, setTab] = useState("overview");
-
-      const fetchData = useCallback(async () => {
-        setLoading(true); setError(null);
-        try {
-          const res = await fetch(CSV_URL);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          const parsed = parseCSV(text);
-          if (parsed.length < 2) throw new Error("データが見つかりません");
-          const headers = parsed[0];
-          const rows = parsed.slice(1).map(r => mapRow(headers, r)).filter(r => r.決定者 || r.client);
-          setRawData(rows); setLastFetched(new Date());
-        } catch(e) { setError(e.message); }
-        finally { setLoading(false); }
-      }, []);
-
-      useEffect(() => { fetchData(); }, [fetchData]);
-      useEffect(() => { const iv = setInterval(fetchData, 5*60*1000); return () => clearInterval(iv); }, [fetchData]);
-
-      const enriched = useMemo(() => rawData.map(r => ({...r, status:getStatus(r), month:getMonth(r.商談日)})), [rawData]);
-      const allMonths = useMemo(() => [...new Set(enriched.map(r=>r.month).filter(Boolean))].sort(), [enriched]);
-      const all決定者 = useMemo(() => [...new Set(enriched.map(r=>r.決定者).filter(Boolean))].sort(), [enriched]);
-      const all担当者 = useMemo(() => [...new Set(enriched.map(r=>r.商談担当者).filter(Boolean))].sort(), [enriched]);
-      const allPeople = useMemo(() => [...new Set([...all決定者,...all担当者])].sort(), [all決定者,all担当者]);
-
-      const filtered = useMemo(() => enriched.filter(r => {
-        if (selMonth !== "all" && r.month !== selMonth) return false;
-        if (selPerson !== "all" && r.決定者 !== selPerson && r.商談担当者 !== selPerson) return false;
-        return true;
-      }), [enriched, selMonth, selPerson]);
-
-      const kpis = useMemo(() => {
-        const t = filtered.length;
-        const w = filtered.filter(r => r.status==="商談待ち"||r.status==="商談予定").length;
-        const c = filtered.filter(r => r.status==="契約").length;
-        const l = filtered.filter(r => r.status==="失注").length;
-        const k = filtered.filter(r => r.status==="検討中").length;
-        const wr = (c+l)>0 ? Math.round(c/(c+l)*100) : 0;
-        return {total:t,waiting:w,contracted:c,lost:l,considering:k,winRate:wr};
-      }, [filtered]);
-
-      const statusDist = useMemo(() => {
-        const m = {}; filtered.forEach(r => { m[r.status]=(m[r.status]||0)+1; });
-        return Object.entries(m).map(([name,value]) => ({name,value}));
-      }, [filtered]);
-
-      const byPerson = useMemo(() => {
-        const m = {};
-        filtered.forEach(r => {
-          const k = r.商談担当者||"未割当";
-          if(!m[k]) m[k]={name:k,契約:0,失注:0,検討中:0,商談待ち:0};
-          if(r.status==="契約") m[k].契約++;
-          else if(r.status==="失注") m[k].失注++;
-          else if(r.status==="検討中") m[k].検討中++;
-          else m[k].商談待ち++;
-        });
-        return Object.values(m);
-      }, [filtered]);
-
-      const by決定者 = useMemo(() => {
-        const m = {};
-        filtered.forEach(r => { if(!m[r.決定者]) m[r.決定者]={name:r.決定者,count:0}; m[r.決定者].count++; });
-        return Object.values(m).sort((a,b) => b.count-a.count);
-      }, [filtered]);
-
-      const monthlyTrend = useMemo(() => {
-        const m = {};
-        enriched.forEach(r => {
-          const mo = r.month; if(!mo) return;
-          if(!m[mo]) m[mo]={month:mo,契約:0,失注:0,検討中:0};
-          if(r.status==="契約") m[mo].契約++;
-          else if(r.status==="失注") m[mo].失注++;
-          else if(r.status==="検討中") m[mo].検討中++;
-        });
-        return Object.values(m).sort((a,b) => a.month.localeCompare(b.month));
-      }, [enriched]);
-
-      const ts = (t2) => ({
-        padding:"8px 20px",cursor:"pointer",fontSize:13,fontWeight:tab===t2?700:400,
-        borderBottom:tab===t2?"2px solid #0f172a":"2px solid transparent",
-        color:tab===t2?"#0f172a":"#94a3b8",background:"none",border:"none"
-      });
-
-      if (loading && rawData.length===0) return (
-        <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh"}}>
-          <div style={{width:40,height:40,border:"4px solid #e2e8f0",borderTopColor:"#3b82f6",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-        </div>
-      );
-
-      return (
-        <div style={{minHeight:"100vh"}}>
-          {/* Header */}
-          <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)",padding:"24px 32px 18px",color:"#fff"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
-              <div>
-                <div style={{fontSize:11,letterSpacing:3,textTransform:"uppercase",opacity:0.6,marginBottom:4}}>Pipeline Dashboard — Live</div>
-                <h1 style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>商談管理ダッシュボード</h1>
-                <div style={{fontSize:11,opacity:0.5,marginTop:4,display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:error?"#f87171":"#34d399",display:"inline-block"}}/>
-                  {lastFetched ? `最終更新: ${lastFetched.toLocaleTimeString("ja-JP")}` : "取得中..."}
-                  <span style={{opacity:0.7}}>（5分毎に自動更新）</span>
-                  <button onClick={fetchData} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",padding:"2px 10px",borderRadius:4,fontSize:11,cursor:"pointer"}}>↻ 今すぐ更新</button>
-                </div>
-              </div>
-              <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
-                <select value={selMonth} onChange={e=>setSelMonth(e.target.value)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:13,outline:"none"}}>
-                  <option value="all" style={{color:"#0f172a"}}>全期間</option>
-                  {allMonths.map(m=><option key={m} value={m} style={{color:"#0f172a"}}>{m}</option>)}
-                </select>
-                <select value={selPerson} onChange={e=>setSelPerson(e.target.value)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:13,outline:"none"}}>
-                  <option value="all" style={{color:"#0f172a"}}>全担当者</option>
-                  {allPeople.map(p=><option key={p} value={p} style={{color:"#0f172a"}}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div style={{display:"flex",gap:4,padding:"0 32px",borderBottom:"1px solid #e2e8f0",background:"#fff"}}>
-            <button style={ts("overview")} onClick={()=>setTab("overview")}>概要</button>
-            <button style={ts("details")} onClick={()=>setTab("details")}>案件一覧</button>
-            <button style={ts("analytics")} onClick={()=>setTab("analytics")}>アナリティクス</button>
-          </div>
-
-          {error && (
-            <div style={{margin:"16px 32px",padding:"12px 16px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,color:"#991b1b",fontSize:13}}>
-              ⚠ データ取得エラー: {error}
-              <div style={{fontSize:11,marginTop:4,color:"#b91c1c"}}>スプレッドシートの共有設定を確認してください。</div>
-            </div>
-          )}
-
-          <div style={{padding:"24px 32px",maxWidth:1200}}>
-            {/* KPIs */}
-            {tab !== "details" && (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))",gap:16,marginBottom:28}}>
-                {[
-                  {label:"全案件",value:kpis.total,color:"#0f172a",sub:"件"},
-                  {label:"商談待ち",value:kpis.waiting,color:"#60a5fa",sub:"件"},
-                  {label:"契約",value:kpis.contracted,color:"#34d399",sub:"件"},
-                  {label:"失注",value:kpis.lost,color:"#f87171",sub:"件"},
-                  {label:"検討中",value:kpis.considering,color:"#fbbf24",sub:"件"},
-                  {label:"受注率",value:kpis.winRate,color:"#8b5cf6",sub:"%"},
-                ].map((k,i) => (
-                  <div key={i} style={{background:"#fff",borderRadius:12,padding:"20px 20px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",borderLeft:`4px solid ${k.color}`}}>
-                    <div style={{fontSize:11,color:"#64748b",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>{k.label}</div>
-                    <div style={{fontSize:32,fontWeight:800,color:k.color,lineHeight:1}}>{k.value}<span style={{fontSize:14,fontWeight:400,marginLeft:2}}>{k.sub}</span></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Overview */}
-            {tab === "overview" && (
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>ステータス別分布</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart><Pie data={statusDist} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label={({name,value})=>`${name}: ${value}`} style={{fontSize:11}}>
-                      {statusDist.map((e,i)=><Cell key={i} fill={SC[e.name]||"#6366f1"}/>)}
-                    </Pie><Tooltip/></PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>商談担当者別 結果内訳</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={byPerson} layout="vertical" margin={{left:60}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-                      <XAxis type="number" style={{fontSize:11}}/><YAxis type="category" dataKey="name" style={{fontSize:12}}/>
-                      <Tooltip/><Bar dataKey="契約" stackId="a" fill="#34d399"/><Bar dataKey="失注" stackId="a" fill="#f87171"/>
-                      <Bar dataKey="検討中" stackId="a" fill="#fbbf24"/><Bar dataKey="商談待ち" stackId="a" fill="#94a3b8" radius={[0,4,4,0]}/>
-                      <Legend wrapperStyle={{fontSize:11}}/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>商談決定者別 アポ獲得数</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={by決定者} margin={{left:20}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" style={{fontSize:12}}/>
-                      <YAxis style={{fontSize:11}}/><Tooltip/><Bar dataKey="count" fill="#3b82f6" radius={[6,6,0,0]} name="獲得件数"/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>月別 商談推移</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={monthlyTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="month" style={{fontSize:11}}/>
-                      <YAxis style={{fontSize:11}}/><Tooltip/>
-                      <Bar dataKey="契約" stackId="a" fill="#34d399"/><Bar dataKey="失注" stackId="a" fill="#f87171"/>
-                      <Bar dataKey="検討中" stackId="a" fill="#fbbf24"/><Legend wrapperStyle={{fontSize:11}}/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {/* Details */}
-            {tab === "details" && (
-              <div style={{background:"#fff",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",overflow:"auto"}}>
-                <table style={{fontSize:12}}>
-                  <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
-                    {["ステータス","決定者","クライアント","施設形態","サービス","見込み","商談日","商談担当","結果","回収日"].map(h=>
-                      <th key={h} style={{padding:"12px 10px",textAlign:"left",fontWeight:700,color:"#475569",fontSize:11,whiteSpace:"nowrap"}}>{h}</th>
-                    )}
-                  </tr></thead>
-                  <tbody>
-                    {filtered.map((r,i) => (
-                      <tr key={i} style={{borderBottom:"1px solid #f1f5f9"}}
-                        onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
-                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                        <td style={{padding:10}}><Badge status={r.status}/></td>
-                        <td style={{padding:10,fontWeight:500}}>{r.決定者}</td>
-                        <td style={{padding:10,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.client}</td>
-                        <td style={{padding:10,color:"#64748b"}}>{r.施設形態||"—"}</td>
-                        <td style={{padding:10}}>{r.サービス種別||"—"}</td>
-                        <td style={{padding:10}}>{r.見込み||"—"}</td>
-                        <td style={{padding:10,whiteSpace:"nowrap"}}>{r.商談日||"—"}</td>
-                        <td style={{padding:10,fontWeight:500}}>{r.商談担当者||"—"}</td>
-                        <td style={{padding:10}}>{r.結果||"—"}</td>
-                        <td style={{padding:10,whiteSpace:"nowrap"}}>{r.回収日||"—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Analytics */}
-            {tab === "analytics" && (
-              <div style={{display:"flex",flexDirection:"column",gap:20}}>
-                {/* Funnel */}
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 20px",color:"#334155"}}>コンバージョンファネル</h3>
-                  {(() => {
-                    const t=filtered.length;
-                    const d=filtered.filter(r=>r.status!=="商談待ち"&&r.status!=="商談予定").length;
-                    const c=filtered.filter(r=>r.status==="契約").length;
-                    return [{label:"アポ獲得",count:t,pct:100},{label:"商談実施",count:d,pct:t?Math.round(d/t*100):0},{label:"契約締結",count:c,pct:t?Math.round(c/t*100):0}].map((s,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:16,marginBottom:8}}>
-                        <div style={{width:90,fontSize:12,fontWeight:600,color:"#475569",textAlign:"right"}}>{s.label}</div>
-                        <div style={{flex:1,background:"#f1f5f9",borderRadius:8,height:36,overflow:"hidden"}}>
-                          <div style={{width:`${s.pct}%`,height:"100%",background:i===0?"#60a5fa":i===1?"#a78bfa":"#34d399",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:12,transition:"width 0.8s"}}>
-                            <span style={{fontSize:13,fontWeight:700,color:"#fff"}}>{s.count}件 ({s.pct}%)</span>
-                          </div>
-                        </div>
-                      </div>
-                    ));
-                  })()}
-                </div>
-
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-                  {/* 担当者パフォーマンス */}
-                  <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>商談担当者 パフォーマンス</h3>
-                    {all担当者.map(p => {
-                      const rows=filtered.filter(r=>r.商談担当者===p);
-                      const w=rows.filter(r=>r.status==="契約").length;
-                      const l=rows.filter(r=>r.status==="失注").length;
-                      const rate=(w+l)>0?Math.round(w/(w+l)*100):0;
-                      return (
-                        <div key={p} style={{padding:16,background:"#f8fafc",borderRadius:10,border:"1px solid #e2e8f0",marginBottom:12}}>
-                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                            <span style={{fontWeight:700,fontSize:14}}>{p}</span>
-                            <span style={{fontSize:12,color:"#64748b"}}>担当 {rows.length}件</span>
-                          </div>
-                          <div style={{display:"flex",gap:16,fontSize:12}}>
-                            <span style={{color:"#34d399"}}>契約 {w}</span>
-                            <span style={{color:"#f87171"}}>失注 {l}</span>
-                            <span style={{color:"#8b5cf6",fontWeight:600}}>受注率 {rate}%</span>
-                          </div>
-                          <div style={{marginTop:8,background:"#e2e8f0",borderRadius:4,height:6,overflow:"hidden"}}>
-                            <div style={{width:`${rate}%`,height:"100%",background:"linear-gradient(90deg,#34d399,#3b82f6)",borderRadius:4}}/>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* ランキング */}
-                  <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>決定者別 アポ獲得ランキング</h3>
-                    {by決定者.map((p,i) => (
-                      <div key={p.name} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"#f8fafc",borderRadius:8,marginBottom:8}}>
-                        <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
-                          background:i===0?"#fbbf24":i===1?"#94a3b8":"#d97706",color:"#fff",fontSize:12,fontWeight:700}}>{i+1}</div>
-                        <div style={{flex:1,fontWeight:600,fontSize:13}}>{p.name}</div>
-                        <div style={{fontSize:20,fontWeight:800,color:"#0f172a"}}>{p.count}<span style={{fontSize:11,fontWeight:400,marginLeft:2}}>件</span></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 施設形態 */}
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>施設形態別 分布</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={(() => {
-                      const m={}; filtered.forEach(r=>{const k=r.施設形態||"未分類"; m[k]=(m[k]||0)+1;});
-                      return Object.entries(m).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
-                    })()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-                      <XAxis dataKey="name" style={{fontSize:10}} angle={-20} textAnchor="end" height={50}/>
-                      <YAxis style={{fontSize:11}}/><Tooltip/><Bar dataKey="value" fill="#6366f1" radius={[6,6,0,0]} name="件数"/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* 要フォロー */}
-                <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-                  <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 16px",color:"#334155"}}>⚠ 要フォロー案件</h3>
-                  {filtered.filter(r=>r.status==="検討中"||r.status==="商談待ち"||r.status==="商談予定").map((r,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"#fffbeb",borderRadius:8,border:"1px solid #fde68a",marginBottom:8}}>
-                      <Badge status={r.status}/>
-                      <div style={{flex:1,fontSize:13,fontWeight:500}}>{r.client}</div>
-                      <div style={{fontSize:11,color:"#92400e"}}>{r.回収日?`回収: ${r.回収日}`:r.商談日?`商談: ${r.商談日}`:"日程未定"}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      );
+    }
+    function getMonth(d) {
+      var dt = parseDate(d);
+      return dt ? dt.getFullYear() + "/" + String(dt.getMonth()+1).padStart(2,'0') : null;
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+    function getStatus(r) {
+      if (r["結果"] === "未実施" || r["次の動き"] === "商談決定日程未定") return "商談待ち";
+      if (!r["結果"] && !r["商談担当者"] && !parseDate(r["商談日"])) return "商談待ち";
+      if (!r["結果"] && parseDate(r["商談日"]) && parseDate(r["商談日"]) > new Date()) return "商談予定";
+      if (r["結果"] === "検討") return "検討中";
+      if (r["結果"] && r["結果"].indexOf("契約") >= 0) return "契約";
+      if (r["結果"] === "失注") return "失注";
+      if (!r["結果"] && r["商談担当者"]) return "商談済(結果待ち)";
+      return "商談待ち";
+    }
+
+    var SC = {"商談待ち":"#94a3b8","商談予定":"#60a5fa","検討中":"#fbbf24","契約":"#34d399","失注":"#f87171","商談済(結果待ち)":"#a78bfa"};
+    function badgeColor(s){return s==="契約"||s==="失注"?"#fff":"#1e293b";}
+
+    // ===== FALLBACK DATA =====
+    function loadFallback() {
+      var fb = [
+        {"決定者":"須野原",client:"グループホーム愛和ハート＆ハートあだち","施設形態":"グループホーム","次の動き":"商談決定","サービス種別":"タスワーク","見込み":"★★★","商談日":"2026/03/06","商談担当者":"水野","結果":"検討","回収日":"3/13"},
+        {"決定者":"髙橋",client:"江北ファミリークリニック","施設形態":"病院・クリニック","次の動き":"商談決定","サービス種別":"両方","見込み":"★★★","商談日":"","商談担当者":"","結果":"","回収日":""},
+        {"決定者":"須野原",client:"東京海上日動ベターライフサービス","施設形態":"","次の動き":"商談決定","サービス種別":"両方","見込み":"★★★","商談日":"2026/03/23","商談担当者":"","結果":"","回収日":""},
+        {"決定者":"高木",client:"特別養護老人ホーム足立万葉苑","施設形態":"訪問介護・訪問看護","次の動き":"商談決定","サービス種別":"","見込み":"★","商談日":"2026/02/06","商談担当者":"大東","結果":"失注","回収日":""},
+        {"決定者":"飯倉",client:"高齢者在宅サービスセンター西新井本町友興の園","施設形態":"デイサービス","次の動き":"商談決定","サービス種別":"","見込み":"★★★","商談日":"2026/02/09","商談担当者":"水野","結果":"失注","回収日":""},
+        {"決定者":"飯倉",client:"むつみ園","施設形態":"特養","次の動き":"商談決定","サービス種別":"","見込み":"★★★","商談日":"2026/02/16","商談担当者":"水野","結果":"契約（タスタス）","回収日":""},
+        {"決定者":"成瀬",client:"訪問診療ネットワーク","施設形態":"","次の動き":"商談決定","サービス種別":"","見込み":"★★★","商談日":"2026/02/18","商談担当者":"水野","結果":"契約（タスタス）","回収日":""},
+        {"決定者":"飯倉",client:"城北介護センター","施設形態":"訪問介護","次の動き":"商談決定","サービス種別":"","見込み":"★★★","商談日":"2026/02/17","商談担当者":"水野","結果":"契約（タスタス）","回収日":""},
+        {"決定者":"飯倉",client:"デイサービス絆の家","施設形態":"デイサービス","次の動き":"商談決定日程未定","サービス種別":"タスタス","見込み":"★★★","商談日":"","商談担当者":"","結果":"未実施","回収日":""},
+        {"決定者":"須野原",client:"(株)ワイグッドケア","施設形態":"","次の動き":"商談決定","サービス種別":"","見込み":"","商談日":"2026/02/09","商談担当者":"水野","結果":"失注","回収日":""},
+        {"決定者":"髙橋",client:"訪問看護ステーション晴あか","施設形態":"訪問看護","次の動き":"商談決定日程未定","サービス種別":"","見込み":"★★★","商談日":"","商談担当者":"","結果":"未実施","回収日":""},
+        {"決定者":"飯倉",client:"訪問介護事業所アップあやせ","施設形態":"訪問介護","次の動き":"商談決定日程未定","サービス種別":"タスワーク","見込み":"★★★","商談日":"","商談担当者":"","結果":"未実施","回収日":""},
+        {"決定者":"須野原",client:"苑風会病院","施設形態":"病院・クリニック","次の動き":"商談決定","サービス種別":"","見込み":"","商談日":"2026/02/12","商談担当者":"水野","結果":"失注","回収日":""},
+        {"決定者":"須野原",client:"ピオーネ西新井","施設形態":"特養","次の動き":"商談決定","サービス種別":"","見込み":"","商談日":"2026/03/11","商談担当者":"水野","結果":"契約（タスワーク）","回収日":""},
+        {"決定者":"須野原",client:"絆ホームケア","施設形態":"","次の動き":"商談決定","サービス種別":"","見込み":"","商談日":"","商談担当者":"大東","結果":"契約（タスタス）","回収日":""},
+        {"決定者":"須野原",client:"ベストケア株式会社","施設形態":"","次の動き":"商談決定","サービス種別":"","見込み":"","商談日":"2026/03/11","商談担当者":"大東","結果":"検討","回収日":"3/23"},
+        {"決定者":"飯倉",client:"白十商事有限会社","施設形態":"","次の動き":"商談決定","サービス種別":"両方","見込み":"★★★","商談日":"2026/03/25","商談担当者":"","結果":"","回収日":""},
+        {"決定者":"飯倉",client:"訪問介護事業所ルナ竹の塚","施設形態":"訪問介護","次の動き":"商談決定","サービス種別":"両方","見込み":"★★★","商談日":"","商談担当者":"","結果":"","回収日":""},
+      ];
+      state.data = fb.map(function(r){return Object.assign({},r,{status:getStatus(r),month:getMonth(r["商談日"])})});
+    }
+
+    // ===== DATA FETCH =====
+    function fetchData() {
+      state.loading = true; state.error = null; render();
+      fetch(CSV_URL_EXPORT)
+        .then(function(res){
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          return res.text();
+        })
+        .then(function(text){
+          if(text.trim().charAt(0)==='<') throw new Error("CSVではなくHTMLが返されました。共有設定を確認してください。");
+          var parsed = parseCSV(text);
+          if(parsed.length<2) throw new Error("データが見つかりません");
+          var headers = parsed[0];
+          var rows = [];
+          for(var i=1;i<parsed.length;i++){
+            var r = mapRow(headers, parsed[i]);
+            if(r["決定者"]||r.client) rows.push(r);
+          }
+          state.data = rows.map(function(r){return Object.assign({},r,{status:getStatus(r),month:getMonth(r["商談日"])})});
+          state.lastFetched = new Date();
+          state.error = null;
+        })
+        .catch(function(e){
+          state.error = e.message;
+          if(state.data.length===0) loadFallback();
+        })
+        .finally(function(){
+          state.loading = false; render();
+        });
+    }
+
+    // ===== COMPUTED =====
+    function getFiltered() {
+      return state.data.filter(function(r){
+        if(state.selMonth!=="all" && r.month!==state.selMonth) return false;
+        if(state.selPerson!=="all" && r["決定者"]!==state.selPerson && r["商談担当者"]!==state.selPerson) return false;
+        return true;
+      });
+    }
+    function getKPIs(f) {
+      var t=f.length, w=0,c=0,l=0,k=0;
+      f.forEach(function(r){
+        if(r.status==="商談待ち"||r.status==="商談予定") w++;
+        if(r.status==="契約") c++;
+        if(r.status==="失注") l++;
+        if(r.status==="検討中") k++;
+      });
+      return {total:t,waiting:w,contracted:c,lost:l,considering:k,winRate:(c+l)>0?Math.round(c/(c+l)*100):0};
+    }
+    function unique(arr,key){var s=new Set();arr.forEach(function(r){if(r[key])s.add(r[key])});return Array.from(s).sort();}
+
+    // ===== CHART HELPERS =====
+    function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+    function createPieChart(id, data) {
+      destroyChart(id);
+      var canvas = document.getElementById(id);
+      if(!canvas) return;
+      charts[id] = new Chart(canvas, {
+        type:'doughnut',
+        data:{labels:data.map(function(d){return d.name}),datasets:[{data:data.map(function(d){return d.value}),backgroundColor:data.map(function(d){return SC[d.name]||"#6366f1"}),borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11,family:'Noto Sans JP'},padding:12}}}}
+      });
+    }
+
+    function createBarChart(id, labels, datasets, opts) {
+      opts = opts || {};
+      destroyChart(id);
+      var canvas = document.getElementById(id);
+      if(!canvas) return;
+      charts[id] = new Chart(canvas, {
+        type:'bar',
+        data:{labels:labels,datasets:datasets},
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          indexAxis:opts.horizontal?'y':'x',
+          scales:{
+            x:{stacked:opts.stacked||false,grid:{display:false},ticks:{font:{size:11,family:'Noto Sans JP'}}},
+            y:{stacked:opts.stacked||false,beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{font:{size:11,family:'Noto Sans JP'}}}
+          },
+          plugins:{legend:{display:datasets.length>1,labels:{font:{size:11,family:'Noto Sans JP'}}}}
+        }
+      });
+    }
+
+    // ===== RENDER =====
+    function render() {
+      var app = document.getElementById('app');
+      var filtered = getFiltered();
+      var kpis = getKPIs(filtered);
+      var allMonths = unique(state.data, 'month');
+      var all決定者 = unique(state.data, '決定者');
+      var all担当者 = unique(state.data, '商談担当者');
+      var allPeopleSet = new Set();
+      all決定者.forEach(function(p){allPeopleSet.add(p)});
+      all担当者.forEach(function(p){allPeopleSet.add(p)});
+      var allPeople = Array.from(allPeopleSet).sort();
+
+      var html = '';
+      // Header
+      html += '<div class="header"><div class="header-top"><div>';
+      html += '<div class="label-sm">Pipeline Dashboard — Live</div>';
+      html += '<h1>商談管理ダッシュボード</h1>';
+      html += '<div class="header-sub"><span class="dot '+(state.error?'dot-err':'dot-ok')+'"></span> ';
+      html += state.lastFetched ? '最終更新: '+state.lastFetched.toLocaleTimeString('ja-JP') : '取得中...';
+      html += ' <span style="opacity:0.7">（5分毎に自動更新）</span>';
+      html += ' <button class="btn-refresh" onclick="fetchData()">↻ 今すぐ更新</button></div></div>';
+      // Filters
+      html += '<div class="filters">';
+      html += '<select onchange="state.selMonth=this.value;render()"><option value="all">全期間</option>';
+      allMonths.forEach(function(m){html += '<option value="'+m+'"'+(state.selMonth===m?' selected':'')+'>'+m+'</option>';});
+      html += '</select>';
+      html += '<select onchange="state.selPerson=this.value;render()"><option value="all">全担当者</option>';
+      allPeople.forEach(function(p){html += '<option value="'+p+'"'+(state.selPerson===p?' selected':'')+'>'+p+'</option>';});
+      html += '</select></div></div></div>';
+
+      // Tabs
+      html += '<div class="tabs">';
+      ['overview','details','analytics'].forEach(function(t){
+        var label = t==='overview'?'概要':t==='details'?'案件一覧':'アナリティクス';
+        html += '<button class="tab-btn'+(state.tab===t?' active':'')+'" onclick="state.tab=\''+t+'\';render()">'+label+'</button>';
+      });
+      html += '</div>';
+
+      // Error
+      if(state.error) html += '<div class="error-box">⚠ データ取得エラー: '+state.error+'<br><span style="font-size:11px;color:#b91c1c">フォールバックデータを表示中。スプレッドシートの共有設定を確認してください。</span></div>';
+
+      if(state.loading && state.data.length===0){
+        html += '<div class="spinner"><div class="spinner-circle"></div></div>';
+      } else {
+        html += '<div class="content">';
+        if(state.tab!=='details') html += renderKPIs(kpis);
+        if(state.tab==='overview') html += renderOverview();
+        if(state.tab==='details') html += renderDetails(filtered);
+        if(state.tab==='analytics') html += renderAnalytics(filtered, all担当者);
+        html += '</div>';
+      }
+      app.innerHTML = html;
+
+      requestAnimationFrame(function(){
+        if(state.tab==='overview') renderOverviewCharts(filtered);
+        if(state.tab==='analytics') renderAnalyticsCharts(filtered);
+      });
+    }
+
+    function renderKPIs(k) {
+      var items = [
+        {l:"全案件",v:k.total,c:"#0f172a",u:"件"},{l:"商談待ち",v:k.waiting,c:"#60a5fa",u:"件"},
+        {l:"契約",v:k.contracted,c:"#34d399",u:"件"},{l:"失注",v:k.lost,c:"#f87171",u:"件"},
+        {l:"検討中",v:k.considering,c:"#fbbf24",u:"件"},{l:"受注率",v:k.winRate,c:"#8b5cf6",u:"%"},
+      ];
+      var h = '<div class="kpi-grid">';
+      items.forEach(function(i){
+        h += '<div class="kpi-card" style="border-left:4px solid '+i.c+'">';
+        h += '<div class="kpi-label">'+i.l+'</div>';
+        h += '<div class="kpi-value" style="color:'+i.c+'">'+i.v+'<span class="kpi-unit">'+i.u+'</span></div></div>';
+      });
+      return h + '</div>';
+    }
+
+    function renderOverview() {
+      return '<div class="grid-2">'+
+        '<div class="card"><h3>ステータス別分布</h3><div class="chart-wrap"><canvas id="chartPie"></canvas></div></div>'+
+        '<div class="card"><h3>商談担当者別 結果内訳</h3><div class="chart-wrap"><canvas id="chartPerson"></canvas></div></div>'+
+        '<div class="card"><h3>商談決定者別 アポ獲得数</h3><div class="chart-wrap"><canvas id="chartSetter"></canvas></div></div>'+
+        '<div class="card"><h3>月別 商談推移</h3><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div></div>';
+    }
+
+    function renderOverviewCharts(f) {
+      var statusMap = {};
+      f.forEach(function(r){statusMap[r.status]=(statusMap[r.status]||0)+1;});
+      var pieData = [];
+      for(var k in statusMap) pieData.push({name:k,value:statusMap[k]});
+      createPieChart('chartPie', pieData);
+
+      var personMap = {};
+      f.forEach(function(r){
+        var k=r["商談担当者"]||"未割当";
+        if(!personMap[k]) personMap[k]={"契約":0,"失注":0,"検討中":0,"他":0};
+        if(r.status==="契約") personMap[k]["契約"]++;
+        else if(r.status==="失注") personMap[k]["失注"]++;
+        else if(r.status==="検討中") personMap[k]["検討中"]++;
+        else personMap[k]["他"]++;
+      });
+      var pLabels = Object.keys(personMap);
+      createBarChart('chartPerson', pLabels, [
+        {label:'契約',data:pLabels.map(function(l){return personMap[l]["契約"]}),backgroundColor:'#34d399'},
+        {label:'失注',data:pLabels.map(function(l){return personMap[l]["失注"]}),backgroundColor:'#f87171'},
+        {label:'検討中',data:pLabels.map(function(l){return personMap[l]["検討中"]}),backgroundColor:'#fbbf24'},
+        {label:'他',data:pLabels.map(function(l){return personMap[l]["他"]}),backgroundColor:'#94a3b8'},
+      ], {stacked:true,horizontal:true});
+
+      var setterMap = {};
+      f.forEach(function(r){if(r["決定者"]) setterMap[r["決定者"]]=(setterMap[r["決定者"]]||0)+1;});
+      var sLabels = Object.keys(setterMap).sort(function(a,b){return setterMap[b]-setterMap[a]});
+      createBarChart('chartSetter', sLabels, [{label:'獲得件数',data:sLabels.map(function(l){return setterMap[l]}),backgroundColor:'#3b82f6',borderRadius:6}]);
+
+      var mMap = {};
+      state.data.forEach(function(r){
+        if(!r.month) return;
+        if(!mMap[r.month]) mMap[r.month]={"契約":0,"失注":0,"検討中":0};
+        if(r.status==="契約") mMap[r.month]["契約"]++;
+        else if(r.status==="失注") mMap[r.month]["失注"]++;
+        else if(r.status==="検討中") mMap[r.month]["検討中"]++;
+      });
+      var mLabels = Object.keys(mMap).sort();
+      createBarChart('chartMonthly', mLabels, [
+        {label:'契約',data:mLabels.map(function(l){return mMap[l]["契約"]}),backgroundColor:'#34d399'},
+        {label:'失注',data:mLabels.map(function(l){return mMap[l]["失注"]}),backgroundColor:'#f87171'},
+        {label:'検討中',data:mLabels.map(function(l){return mMap[l]["検討中"]}),backgroundColor:'#fbbf24'},
+      ], {stacked:true});
+    }
+
+    function renderDetails(f) {
+      var h = '<div class="tbl-wrap"><table><thead><tr>';
+      ["ステータス","決定者","クライアント","施設形態","サービス","見込み","商談日","商談担当","結果","回収日"].forEach(function(c){h+='<th>'+c+'</th>';});
+      h += '</tr></thead><tbody>';
+      f.forEach(function(r){
+        h += '<tr><td><span class="badge" style="background:'+( SC[r.status]||'#e2e8f0')+';color:'+badgeColor(r.status)+'">'+r.status+'</span></td>';
+        h += '<td style="font-weight:500">'+r["決定者"]+'</td>';
+        h += '<td class="ellipsis">'+r.client+'</td>';
+        h += '<td style="color:#64748b">'+(r["施設形態"]||'—')+'</td>';
+        h += '<td>'+(r["サービス種別"]||'—')+'</td>';
+        h += '<td>'+(r["見込み"]||'—')+'</td>';
+        h += '<td style="white-space:nowrap">'+(r["商談日"]||'—')+'</td>';
+        h += '<td style="font-weight:500">'+(r["商談担当者"]||'—')+'</td>';
+        h += '<td>'+(r["結果"]||'—')+'</td>';
+        h += '<td style="white-space:nowrap">'+(r["回収日"]||'—')+'</td></tr>';
+      });
+      return h + '</tbody></table></div>';
+    }
+
+    function renderAnalytics(f, all担当) {
+      var total=f.length;
+      var done=f.filter(function(r){return r.status!=="商談待ち"&&r.status!=="商談予定"}).length;
+      var contracted=f.filter(function(r){return r.status==="契約"}).length;
+      var stages = [
+        {l:"アポ獲得",c:total,p:100,bg:"#60a5fa"},
+        {l:"商談実施",c:done,p:total?Math.round(done/total*100):0,bg:"#a78bfa"},
+        {l:"契約締結",c:contracted,p:total?Math.round(contracted/total*100):0,bg:"#34d399"},
+      ];
+
+      var h = '<div class="card" style="margin-bottom:20px"><h3>コンバージョンファネル</h3>';
+      stages.forEach(function(s){
+        h += '<div class="funnel-row"><div class="funnel-label">'+s.l+'</div>';
+        h += '<div class="funnel-bar-bg"><div class="funnel-bar" style="width:'+s.p+'%;background:'+s.bg+'"><span>'+s.c+'件 ('+s.p+'%)</span></div></div></div>';
+      });
+      h += '</div>';
+
+      h += '<div class="grid-2"><div class="card"><h3>商談担当者 パフォーマンス</h3>';
+      all担当.forEach(function(p){
+        var rows=f.filter(function(r){return r["商談担当者"]===p});
+        var w=rows.filter(function(r){return r.status==="契約"}).length;
+        var l=rows.filter(function(r){return r.status==="失注"}).length;
+        var rate=(w+l)>0?Math.round(w/(w+l)*100):0;
+        h += '<div class="perf-card"><div class="perf-header"><span style="font-weight:700;font-size:14px">'+p+'</span>';
+        h += '<span style="font-size:12px;color:#64748b">担当 '+rows.length+'件</span></div>';
+        h += '<div class="perf-stats"><span style="color:#34d399">契約 '+w+'</span><span style="color:#f87171">失注 '+l+'</span>';
+        h += '<span style="color:#8b5cf6;font-weight:600">受注率 '+rate+'%</span></div>';
+        h += '<div class="perf-bar-bg"><div class="perf-bar" style="width:'+rate+'%"></div></div></div>';
+      });
+      h += '</div>';
+
+      // Ranking
+      var setterMap = {};
+      f.forEach(function(r){if(r["決定者"]) setterMap[r["決定者"]]=(setterMap[r["決定者"]]||0)+1;});
+      var ranked = Object.entries(setterMap).sort(function(a,b){return b[1]-a[1]});
+      var rankColors = ['#fbbf24','#94a3b8','#d97706','#64748b','#64748b'];
+
+      h += '<div class="card"><h3>決定者別 アポ獲得ランキング</h3>';
+      ranked.forEach(function(item,i){
+        h += '<div class="rank-item"><div class="rank-num" style="background:'+(rankColors[i]||'#64748b')+'">'+(i+1)+'</div>';
+        h += '<div style="flex:1;font-weight:600;font-size:13px">'+item[0]+'</div>';
+        h += '<div style="font-size:20px;font-weight:800">'+item[1]+'<span style="font-size:11px;font-weight:400;margin-left:2px">件</span></div></div>';
+      });
+      h += '</div></div>';
+
+      // Facility chart
+      h += '<div class="card" style="margin-top:20px"><h3>施設形態別 分布</h3><div class="chart-wrap"><canvas id="chartFacility"></canvas></div></div>';
+
+      // Follow up items
+      var followItems = f.filter(function(r){return r.status==="検討中"||r.status==="商談待ち"||r.status==="商談予定"});
+      h += '<div class="card" style="margin-top:20px"><h3>⚠ 要フォロー案件</h3>';
+      followItems.forEach(function(r){
+        h += '<div class="follow-item"><span class="badge" style="background:'+(SC[r.status]||'#e2e8f0')+';color:'+badgeColor(r.status)+'">'+r.status+'</span>';
+        h += '<div style="flex:1;font-size:13px;font-weight:500">'+r.client+'</div>';
+        h += '<div style="font-size:11px;color:#92400e">'+(r["回収日"]?'回収: '+r["回収日"]:r["商談日"]?'商談: '+r["商談日"]:'日程未定')+'</div></div>';
+      });
+      h += '</div>';
+      return h;
+    }
+
+    function renderAnalyticsCharts(f) {
+      var fMap = {};
+      f.forEach(function(r){var k=r["施設形態"]||"未分類"; fMap[k]=(fMap[k]||0)+1;});
+      var fLabels = Object.keys(fMap).sort(function(a,b){return fMap[b]-fMap[a]});
+      createBarChart('chartFacility', fLabels, [{label:'件数',data:fLabels.map(function(l){return fMap[l]}),backgroundColor:'#6366f1',borderRadius:6}]);
+    }
+
+    // ===== INIT =====
+    fetchData();
+    setInterval(fetchData, 5*60*1000);
   </script>
 </body>
 </html>
