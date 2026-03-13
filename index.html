@@ -24,7 +24,7 @@
     .tabs{display:flex;gap:4px;padding:0 32px;border-bottom:1px solid #e2e8f0;background:#fff}
     .tab-btn{padding:8px 20px;cursor:pointer;font-size:13px;border:none;background:none;border-bottom:2px solid transparent;color:#94a3b8;font-family:inherit;transition:all 0.2s}
     .tab-btn.active{font-weight:700;color:#0f172a;border-bottom-color:#0f172a}
-    .content{padding:24px 32px;max-width:1200px}
+    .content{padding:24px 32px}
     .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px}
     .kpi-card{background:#fff;border-radius:12px;padding:20px 20px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
     .kpi-label{font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
@@ -35,19 +35,19 @@
     .card h3{font-size:14px;font-weight:700;margin:0 0 16px;color:#334155}
     .chart-wrap{position:relative;height:260px}
     .tbl-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:auto;max-height:70vh;position:relative}
-    table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+    table{width:100%;border-collapse:collapse;font-size:clamp(10px,1.2vw,13px);table-layout:fixed}
     thead{position:sticky;top:0;z-index:10}
     thead tr{background:#f1f5f9;border-bottom:2px solid #e2e8f0}
-    th{padding:12px 10px;text-align:left;font-weight:700;color:#475569;font-size:11px;white-space:nowrap;position:relative;overflow:hidden;background:#f1f5f9;cursor:pointer;user-select:none}
+    th{padding:8px 6px;text-align:left;font-weight:700;color:#475569;font-size:clamp(9px,1.1vw,11px);white-space:nowrap;position:relative;overflow:hidden;background:#f1f5f9;cursor:pointer;user-select:none}
     th:hover{background:#e2e8f0}
     th .sort-icon{font-size:10px;margin-left:3px;opacity:0.4}
     th .sort-icon.active{opacity:1;color:#3b82f6}
     th .resize-handle{position:absolute;right:0;top:0;width:6px;height:100%;cursor:col-resize;background:transparent;transition:background 0.2s}
     th .resize-handle:hover,th .resize-handle.active{background:#3b82f6}
-    td{padding:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    td{padding:8px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     tbody tr{border-bottom:1px solid #f1f5f9;transition:background 0.15s}
     tbody tr:hover{background:#f8fafc}
-    .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.5px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:clamp(9px,1vw,11px);font-weight:600;letter-spacing:0.3px}
     .funnel-row{display:flex;align-items:center;gap:16px;margin-bottom:8px}
     .funnel-label{width:90px;font-size:12px;font-weight:600;color:#475569;text-align:right}
     .funnel-bar-bg{flex:1;background:#f1f5f9;border-radius:8px;height:36px;overflow:hidden}
@@ -65,7 +65,8 @@
     .spinner{display:flex;justify-content:center;align-items:center;height:300px}
     .spinner-circle{width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite}
     .ellipsis{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    @media(max-width:768px){.grid-2{grid-template-columns:1fr}.content{padding:16px}.header{padding:16px 16px 12px}.tabs{padding:0 16px}}
+    @media(max-width:1200px){table{font-size:11px}th{font-size:10px;padding:6px 4px}td{padding:6px 4px}.badge{font-size:9px;padding:2px 6px}}
+    @media(max-width:768px){.grid-2{grid-template-columns:1fr}.content{padding:12px}.header{padding:16px 16px 12px}.tabs{padding:0 16px}table{font-size:10px}th{font-size:9px}}
   </style>
 </head>
 <body>
@@ -536,8 +537,17 @@
         return d.getFullYear()+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getDate()).padStart(2,"0");
       }
 
+      // Column width percentages - client column gets remaining space
+      var colWidths = [8,9,6,0,8,7,7,8,6,9,6]; // 0 = auto-fill remaining
       var h = '<div class="tbl-wrap" id="tblWrap"><table id="detailTable"><colgroup>';
-      cols.forEach(function(c,i){h += '<col id="col'+i+'">';});
+      cols.forEach(function(c,i){
+        var w = colWidths[i];
+        if(w === 0) {
+          h += '<col id="col'+i+'" style="width:auto">';
+        } else {
+          h += '<col id="col'+i+'" style="width:'+w+'%">';
+        }
+      });
       h += '</colgroup><thead><tr>';
       cols.forEach(function(c,i){
         var icon = '↕';
