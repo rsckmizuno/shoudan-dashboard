@@ -35,7 +35,7 @@
     .card h3{font-size:14px;font-weight:700;margin:0 0 16px;color:#334155}
     .chart-wrap{position:relative;height:260px}
     .tbl-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:auto;max-height:70vh;position:relative}
-    table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+    table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
     thead{position:sticky;top:0;z-index:10}
     thead tr{background:#f1f5f9;border-bottom:2px solid #e2e8f0}
     th{padding:12px 10px;text-align:left;font-weight:700;color:#475569;font-size:11px;white-space:nowrap;position:relative;overflow:hidden;background:#f1f5f9;cursor:pointer;user-select:none}
@@ -396,7 +396,7 @@
       } else {
         html += '<div class="content">';
         if(state.tab!=='details') html += renderKPIs(kpis);
-        if(state.tab==='overview') html += renderOverview();
+        if(state.tab==='overview') html += renderOverview(filtered, all担当者);
         if(state.tab==='details') html += renderDetails(filtered);
         if(state.tab==='analytics') html += renderAnalytics(filtered, all担当者);
         html += '</div>';
@@ -434,7 +434,8 @@
         '<div class="card"><h3>ステータス別分布</h3><div class="chart-wrap"><canvas id="chartPie"></canvas></div></div>'+
         '<div class="card"><h3>商談担当者別 結果内訳</h3><div class="chart-wrap"><canvas id="chartPerson"></canvas></div></div>'+
         '<div class="card"><h3>商談決定者別 アポ獲得数</h3><div class="chart-wrap"><canvas id="chartSetter"></canvas></div></div>'+
-        '<div class="card"><h3>月別 商談推移</h3><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div></div>';
+        '<div class="card"><h3>月別 商談推移</h3><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div></div>'+
+        '<div id="closerRateCards" style="margin-top:20px"></div>';
     }
 
     function renderOverviewCharts(f) {
@@ -535,9 +536,8 @@
         return d.getFullYear()+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getDate()).padStart(2,"0");
       }
 
-      var totalW = 0; cols.forEach(function(c){totalW+=c.w;});
-      var h = '<div class="tbl-wrap" id="tblWrap"><table id="detailTable" style="min-width:'+totalW+'px"><colgroup>';
-      cols.forEach(function(c,i){h += '<col id="col'+i+'" style="width:'+c.w+'px">';});
+      var h = '<div class="tbl-wrap" id="tblWrap"><table id="detailTable"><colgroup>';
+      cols.forEach(function(c,i){h += '<col id="col'+i+'">';});
       h += '</colgroup><thead><tr>';
       cols.forEach(function(c,i){
         var icon = '↕';
