@@ -709,7 +709,13 @@
       h += '</div>';
 
       // Follow up items
-      var followItems = f.filter(function(r){return r.status==="検討中"||r.status==="商談待ち"||r.status==="商談予定"});
+      var followItems = f.filter(function(r){
+        // ①商談日程が決まっていない
+        var noDate = !parseDate(r["商談日"]);
+        // ②結果が検討中かつ回収日に日付がある
+        var kentoWithDate = r.status==="検討中" && r["回収日"] && r["回収日"].trim()!=="";
+        return noDate || kentoWithDate;
+      });
       h += '<div class="card" style="margin-top:20px"><h3>⚠ 要フォロー案件</h3>';
       followItems.forEach(function(r){
         h += '<div class="follow-item"><span class="badge" style="background:'+(SC[r.status]||'#e2e8f0')+';color:'+badgeColor(r.status)+'">'+r.status+'</span>';
