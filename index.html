@@ -173,6 +173,7 @@
         "サービス種別": get("サービス種別", false),
         "見込み": get("見込み", false),
         "商談日": get("商談日", false),
+        "商談時間": get("商談時間", false),
         "商談担当者": get("商談担当者", true),
         "結果": get("結果", true),
         "回収日": get("回収日", true),
@@ -821,7 +822,7 @@
         h+='<div class="cal-date'+(isT?' today':'')+'" style="'+(dow===0?'color:#f87171':dow===6?'color:#3b82f6':'')+'">'+d+'</div>';
         if(eventMap[k]) eventMap[k].forEach(function(ev){
           var bg=SC[ev.status]||'#e2e8f0', fc=badgeColor(ev.status);
-          h+='<div class="cal-event" style="background:'+bg+';color:'+fc+'" title="'+ev.client+' / '+(ev["商談担当者"]||"—")+' / '+ev.status+'">'+(ev.client||"").substring(0,12)+'</div>';
+          h+='<div class="cal-event" style="background:'+bg+';color:'+fc+'" title="'+ev.client+' / '+(ev["商談担当者"]||"—")+' / '+ev.status+'">'+(ev["商談時間"]?ev["商談時間"].substring(0,5)+" ":"")+(ev.client||"").substring(0,10)+'</div>';
         });
         h+='</div>';
       }
@@ -850,6 +851,7 @@
           eventMap[k].forEach(function(ev){
             var bg=SC[ev.status]||'#e2e8f0', fc=badgeColor(ev.status);
             h+='<div class="cal-week-event" style="background:'+bg+';color:'+fc+'">';
+            if(ev["商談時間"]) h+='<div style="font-size:10px;font-weight:700;margin-bottom:2px">'+ev["商談時間"].substring(0,5)+'</div>';
             h+='<div style="font-weight:600">'+(ev.client||"").substring(0,20)+'</div>';
             h+='<div style="font-size:10px;opacity:0.8;margin-top:2px">'+ev.status+'</div>';
             h+='</div>';
@@ -873,7 +875,9 @@
       } else {
         events.forEach(function(ev){
           var bg=SC[ev.status]||'#e2e8f0', fc=badgeColor(ev.status);
+          var time=ev["商談時間"]?ev["商談時間"].substring(0,5):"—";
           h+='<div class="cal-day-event">';
+          h+='<div class="cal-day-time">'+time+'</div>';
           h+='<div class="cal-day-detail">';
           h+='<div class="cal-day-client">'+ev.client+'</div>';
           h+='<div class="cal-day-meta" style="margin-top:6px">';
