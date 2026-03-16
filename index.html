@@ -62,6 +62,31 @@
     .rank-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700}
     .follow-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;margin-bottom:8px}
     .error-box{margin:16px 32px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:13px}
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#e2e8f0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+    .cal-header{background:#f1f5f9;padding:8px 4px;text-align:center;font-size:11px;font-weight:700;color:#64748b}
+    .cal-day{background:#fff;height:90px;padding:4px 6px;vertical-align:top;position:relative;overflow-y:auto}
+    .cal-day.other{background:#f8fafc;opacity:0.4}
+    .cal-day.today{background:#eff6ff}
+    .cal-date{font-size:11px;font-weight:600;color:#64748b;margin-bottom:2px}
+    .cal-date.today{color:#3b82f6;font-weight:800}
+    .cal-event{font-size:9px;padding:2px 4px;border-radius:4px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;line-height:1.3}
+    .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+    .cal-nav button,.cal-view-btn{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;font-family:inherit;color:#334155}
+    .cal-nav button:hover,.cal-view-btn:hover{background:#e2e8f0}
+    .cal-view-btn.active{background:#0f172a;color:#fff;border-color:#0f172a}
+    .cal-nav span{font-size:16px;font-weight:700;color:#0f172a}
+    .cal-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#e2e8f0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+    .cal-week-day{background:#fff;min-height:200px;padding:6px 8px;overflow-y:auto}
+    .cal-week-day.today{background:#eff6ff}
+    .cal-week-event{font-size:11px;padding:6px 8px;border-radius:6px;margin-bottom:4px;cursor:default;line-height:1.4}
+    .cal-day-view{background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+    .cal-day-event{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f5f9}
+    .cal-day-event:last-child{border-bottom:none}
+    .cal-day-time{font-size:12px;font-weight:700;color:#64748b;min-width:50px}
+    .cal-day-detail{flex:1}
+    .cal-day-client{font-size:13px;font-weight:600;color:#0f172a}
+    .cal-day-meta{font-size:11px;color:#64748b;margin-top:2px}
+    .cal-empty{text-align:center;padding:40px;color:#94a3b8;font-size:13px}
     .spinner{display:flex;justify-content:center;align-items:center;height:300px}
     .spinner-circle{width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite}
     .ellipsis{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -80,7 +105,8 @@
     var state = {
       data: [], loading: true, error: null, lastFetched: null,
       selDateType: "商談日", dateFrom: "", dateTo: "", selSetter: "all", selCloser: "all", selService: "all", tab: "overview",
-      sortCol: null, sortAsc: true
+      sortCol: null, sortAsc: true,
+      calYear: new Date().getFullYear(), calMonth: new Date().getMonth(), calView: "week", calWeekStart: null
     };
     var charts = {};
 
@@ -675,6 +701,12 @@
       // Facility chart
       h += '<div class="card" style="margin-top:20px"><h3>施設形態別 分布</h3><div class="chart-wrap"><canvas id="chartFacility"></canvas></div></div>';
 
+      // Calendar
+      h += '<div class="card" style="margin-top:20px">';
+      h += '<h3>商談カレンダー</h3>';
+      h += renderCalendar(f);
+      h += '</div>';
+
       // Follow up items
       var followItems = f.filter(function(r){return r.status==="検討中"||r.status==="商談待ち"||r.status==="商談予定"});
       h += '<div class="card" style="margin-top:20px"><h3>⚠ 要フォロー案件</h3>';
@@ -692,6 +724,166 @@
       f.forEach(function(r){var k=r["施設形態"]||"未分類"; fMap[k]=(fMap[k]||0)+1;});
       var fLabels = Object.keys(fMap).sort(function(a,b){return fMap[b]-fMap[a]});
       createBarChart('chartFacility', fLabels, [{label:'件数',data:fLabels.map(function(l){return fMap[l]}),backgroundColor:'#6366f1',borderRadius:6}]);
+    }
+
+    // Calendar navigation
+    function getWeekStart() {
+      if(state.calWeekStart) return new Date(state.calWeekStart);
+      var d = new Date(); var dow = d.getDay(); var diff = (dow === 0) ? 6 : dow - 1; d.setDate(d.getDate() - diff);
+      return d;
+    }
+    function getSelectedDay() {
+      return new Date(state.calYear, state.calMonth, state.calDay || new Date().getDate());
+    }
+    function calSetView(v){ state.calView=v; render(); }
+    function calPrev(){
+      if(state.calView==="month"){ state.calMonth--; if(state.calMonth<0){state.calMonth=11;state.calYear--;} }
+      else if(state.calView==="week"){ var ws=getWeekStart(); ws.setDate(ws.getDate()-7); state.calWeekStart=ws.toISOString(); }
+      else { var sd=getSelectedDay(); sd.setDate(sd.getDate()-1); state.calYear=sd.getFullYear();state.calMonth=sd.getMonth();state.calDay=sd.getDate(); }
+      render();
+    }
+    function calNext(){
+      if(state.calView==="month"){ state.calMonth++; if(state.calMonth>11){state.calMonth=0;state.calYear++;} }
+      else if(state.calView==="week"){ var ws=getWeekStart(); ws.setDate(ws.getDate()+7); state.calWeekStart=ws.toISOString(); }
+      else { var sd=getSelectedDay(); sd.setDate(sd.getDate()+1); state.calYear=sd.getFullYear();state.calMonth=sd.getMonth();state.calDay=sd.getDate(); }
+      render();
+    }
+    function calToday(){
+      var t=new Date();
+      state.calYear=t.getFullYear(); state.calMonth=t.getMonth(); state.calDay=t.getDate(); state.calWeekStart=null;
+      render();
+    }
+
+    function buildEventMap(f) {
+      var eventMap = {};
+      f.forEach(function(r){
+        var d = parseDate(r["商談日"]);
+        if(!d) return;
+        var key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+        if(!eventMap[key]) eventMap[key] = [];
+        eventMap[key].push(r);
+      });
+      return eventMap;
+    }
+    function dk(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+    function fmtDS(d){ return (d.getMonth()+1)+"/"+d.getDate(); }
+
+    var MN=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+    var DN=["月","火","水","木","金","土","日"];
+    // Convert JS getDay() (0=Sun) to Monday-start index (0=Mon)
+    function monIdx(dow){ return dow===0?6:dow-1; }
+
+    function renderCalendar(f) {
+      var eventMap = buildEventMap(f);
+      var today = new Date();
+      var h = '';
+      var titleText = '';
+      if(state.calView==="month") titleText = state.calYear+'年 '+MN[state.calMonth];
+      else if(state.calView==="week"){
+        var ws=getWeekStart(), we=new Date(ws); we.setDate(we.getDate()+6);
+        titleText = ws.getFullYear()+'年 '+fmtDS(ws)+' 〜 '+fmtDS(we);
+      } else {
+        var sd=getSelectedDay();
+        titleText = sd.getFullYear()+'年 '+(sd.getMonth()+1)+'月'+sd.getDate()+'日（'+DN[monIdx(sd.getDay())]+'）';
+      }
+      var pL=state.calView==="month"?"前月":state.calView==="week"?"前週":"前日";
+      var nL=state.calView==="month"?"翌月":state.calView==="week"?"翌週":"翌日";
+      h+='<div class="cal-nav">';
+      h+='<div style="display:flex;gap:6px"><button onclick="calPrev()">◀ '+pL+'</button><button onclick="calToday()">今日</button><button onclick="calNext()">'+nL+' ▶</button></div>';
+      h+='<span>'+titleText+'</span>';
+      h+='<div style="display:flex;gap:4px">';
+      h+='<button class="cal-view-btn'+(state.calView==="month"?" active":"")+'" onclick="calSetView(\'month\')">月</button>';
+      h+='<button class="cal-view-btn'+(state.calView==="week"?" active":"")+'" onclick="calSetView(\'week\')">週</button>';
+      h+='<button class="cal-view-btn'+(state.calView==="day"?" active":"")+'" onclick="calSetView(\'day\')">日</button>';
+      h+='</div></div>';
+      if(state.calView==="month") h+=renderCalMonth(eventMap,today);
+      else if(state.calView==="week") h+=renderCalWeek(eventMap,today);
+      else h+=renderCalDay(eventMap,today);
+      return h;
+    }
+
+    function renderCalMonth(eventMap, today) {
+      var y=state.calYear, m=state.calMonth;
+      var firstDay=new Date(y,m,1), lastDay=new Date(y,m+1,0);
+      var startDow=monIdx(firstDay.getDay()), daysInMonth=lastDay.getDate();
+      var h='<div class="cal-grid">';
+      DN.forEach(function(d,i){
+        var c=i===5?'color:#3b82f6':i===6?'color:#f87171':'';
+        h+='<div class="cal-header" style="'+c+'">'+d+'</div>';
+      });
+      var pM=new Date(y,m,0);
+      for(var i=startDow-1;i>=0;i--) h+='<div class="cal-day other"><div class="cal-date">'+(pM.getDate()-i)+'</div></div>';
+      for(var d=1;d<=daysInMonth;d++){
+        var k=dk(new Date(y,m,d));
+        var isT=(today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d);
+        var dow=new Date(y,m,d).getDay();
+        h+='<div class="cal-day'+(isT?' today':'')+'">';
+        h+='<div class="cal-date'+(isT?' today':'')+'" style="'+(dow===0?'color:#f87171':dow===6?'color:#3b82f6':'')+'">'+d+'</div>';
+        if(eventMap[k]) eventMap[k].forEach(function(ev){
+          var bg=SC[ev.status]||'#e2e8f0', fc=badgeColor(ev.status);
+          h+='<div class="cal-event" style="background:'+bg+';color:'+fc+'" title="'+ev.client+' / '+(ev["商談担当者"]||"—")+' / '+ev.status+'">'+(ev.client||"").substring(0,12)+'</div>';
+        });
+        h+='</div>';
+      }
+      var rem=(7-(startDow+daysInMonth)%7)%7;
+      for(var i=1;i<=rem;i++) h+='<div class="cal-day other"><div class="cal-date">'+i+'</div></div>';
+      h+='</div>';
+      return h;
+    }
+
+    function renderCalWeek(eventMap, today) {
+      var ws=getWeekStart();
+      var h='<div class="cal-week-grid">';
+      for(var i=0;i<7;i++){
+        var d=new Date(ws); d.setDate(d.getDate()+i);
+        var isT=dk(d)===dk(today);
+        var dow=d.getDay();
+        var dc=dow===0?'color:#f87171':dow===6?'color:#3b82f6':'';
+        h+='<div class="cal-header" style="'+dc+(isT?';background:#dbeafe':'')+'">'+DN[monIdx(dow)]+' <span style="font-size:13px">'+d.getDate()+'</span></div>';
+      }
+      for(var i=0;i<7;i++){
+        var d=new Date(ws); d.setDate(d.getDate()+i);
+        var k=dk(d);
+        var isT=k===dk(today);
+        h+='<div class="cal-week-day'+(isT?' today':'')+'">';
+        if(eventMap[k]){
+          eventMap[k].forEach(function(ev){
+            var bg=SC[ev.status]||'#e2e8f0', fc=badgeColor(ev.status);
+            h+='<div class="cal-week-event" style="background:'+bg+';color:'+fc+'">';
+            h+='<div style="font-weight:600">'+(ev.client||"").substring(0,20)+'</div>';
+            h+='<div style="font-size:10px;opacity:0.8;margin-top:2px">'+ev.status+'</div>';
+            h+='</div>';
+          });
+        } else {
+          h+='<div style="color:#cbd5e1;font-size:11px;text-align:center;margin-top:30px">予定なし</div>';
+        }
+        h+='</div>';
+      }
+      h+='</div>';
+      return h;
+    }
+
+    function renderCalDay(eventMap, today) {
+      var sd=getSelectedDay();
+      var k=dk(sd);
+      var events=eventMap[k]||[];
+      var h='<div class="cal-day-view">';
+      if(events.length===0){
+        h+='<div class="cal-empty">この日の商談予定はありません</div>';
+      } else {
+        events.forEach(function(ev){
+          var bg=SC[ev.status]||'#e2e8f0', fc=badgeColor(ev.status);
+          h+='<div class="cal-day-event">';
+          h+='<div class="cal-day-detail">';
+          h+='<div class="cal-day-client">'+ev.client+'</div>';
+          h+='<div class="cal-day-meta" style="margin-top:6px">';
+          h+='<span class="badge" style="background:'+bg+';color:'+fc+';margin-right:8px">'+ev.status+'</span>';
+          h+='担当: '+(ev["商談担当者"]||"—")+' ／ 決定者: '+(ev["決定者"]||"—")+' ／ サービス: '+(ev["サービス種別"]||"—");
+          h+='</div></div></div>';
+        });
+      }
+      h+='</div>';
+      return h;
     }
 
     // ===== INIT =====
