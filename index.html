@@ -120,13 +120,12 @@
     </div>
   </div>
 
-  <!-- ダッシュボード本体（認証前は非表示） -->
   <div id="app" style="display:none"></div>
 
   <script>
     // ===== AUTH =====
-    var AUTH_HASH = "7f222fcf48e7ea9b6f10047f2c4a32d69a6e1a8f8dbbbcd855ac13647a9e9606";
-    var SESSION_DURATION = 60 * 60 * 1000; // 1時間
+    var AUTH_HASH = "be3df1e51d8705e7d6751a62cf86e9e5f258854ba13d8f5f217a83c11384fc6b";
+    var SESSION_DURATION = 60 * 60 * 1000;
 
     async function hashCode(text) {
       var encoder = new TextEncoder();
@@ -175,7 +174,6 @@
       document.getElementById('authScreen').style.display = 'flex';
     }
 
-    // セッション期限チェック（1分ごと）
     setInterval(function(){
       var session = sessionStorage.getItem('dashboard_auth');
       if(session) {
@@ -188,6 +186,7 @@
         }
       }
     }, 60000);
+
     // ===== CONFIG =====
     const CSV_URL_PUB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQwYDCQSJ19WowC2l_nBvXaK70nat584JRqyWZNGEzwsFfaK50e1J84CwT86FRzAxjKBTdwHQ5gYad2/pub?gid=1657314990&single=true&output=csv";
     const CSV_URL_EXPORT = "https://docs.google.com/spreadsheets/d/11CumsNUPsikI7MSu2d_p6ebV05fpwW9XtuBGFuI7mWE/export?format=csv&gid=1657314990";
