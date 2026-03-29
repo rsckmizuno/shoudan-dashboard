@@ -194,7 +194,7 @@
     // ===== STATE =====
     var state = {
       data: [], loading: true, error: null, lastFetched: null,
-      selDateType: "商談日", dateFrom: "", dateTo: "", selSetter: "all", selCloser: "all", selService: "all", tab: "overview",
+      selDateType: "商談日", dateFrom: "", dateTo: "", selSetter: "all", selCloser: "all", selService: "all", selArea: "all", tab: "overview",
       sortCol: null, sortAsc: true, colFilters: {},
       calYear: new Date().getFullYear(), calMonth: new Date().getMonth(), calView: "week", calWeekStart: null
     };
@@ -258,6 +258,7 @@
         "取得日": get("タイムスタンプ", false),
         "決定者": get("商談決定者", false),
         client: get("クライアント名", false),
+        "エリア": get("エリア", false),
         "施設形態": get("施設形態", false),
         "次の動き": get("次の動き", false),
         "サービス種別": get("サービス種別", false),
@@ -396,6 +397,7 @@
         if(state.selSetter!=="all" && r["決定者"]!==state.selSetter) return false;
         if(state.selCloser!=="all" && r["商談担当者"]!==state.selCloser) return false;
         if(state.selService!=="all" && r.serviceType!==state.selService) return false;
+        if(state.selArea!=="all" && r["エリア"]!==state.selArea) return false;
         return true;
       });
     }
@@ -456,6 +458,7 @@
       // 月リストは選択中のDateTypeに応じて変える
       var all決定者 = unique(state.data, '決定者');
       var all担当者 = unique(state.data, '商談担当者');
+      var allAreas = unique(state.data, 'エリア');
 
       var html = '';
       // Header
@@ -486,6 +489,9 @@
       html += '</select>';
       html += '<select onchange="state.selCloser=this.value;render()"><option value="all">商談担当者（全員）</option>';
       all担当者.forEach(function(p){html += '<option value="'+p+'"'+(state.selCloser===p?' selected':'')+'>'+p+'</option>';});
+      html += '</select>';
+      html += '<select onchange="state.selArea=this.value;render()"><option value="all">エリア（すべて）</option>';
+      allAreas.forEach(function(a){html += '<option value="'+a+'"'+(state.selArea===a?' selected':'')+'>'+a+'</option>';});
       html += '</select></div></div></div>';
 
       // Tabs
@@ -617,6 +623,7 @@
         {name:"ステータス", key:"status", filterable:true},
         {name:"決定者", key:"決定者", filterable:true},
         {name:"クライアント", key:"client", filterable:false},
+        {name:"エリア", key:"エリア", filterable:true},
         {name:"施設形態", key:"施設形態", filterable:true},
         {name:"サービス", key:"サービス種別", filterable:true},
         {name:"見込み", key:"見込み", filterable:true},
@@ -677,7 +684,7 @@
         return d.getFullYear()+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getDate()).padStart(2,"0");
       }
 
-      var colWidths = [8,9,6,0,8,7,7,8,6,9,6];
+      var colWidths = [7,8,5,0,6,7,6,6,7,6,8,5];
       var h = '<div class="tbl-wrap" id="tblWrap"><table id="detailTable"><colgroup>';
       cols.forEach(function(c,i){
         var w = colWidths[i];
@@ -713,6 +720,7 @@
         h += '<td><span class="badge" style="background:'+(SC[r.status]||'#e2e8f0')+';color:'+badgeColor(r.status)+'">'+r.status+'</span></td>';
         h += '<td style="font-weight:500">'+r["決定者"]+'</td>';
         h += '<td title="'+r.client+'">'+r.client+'</td>';
+        h += '<td>'+(r["エリア"]||'—')+'</td>';
         h += '<td style="color:#64748b">'+(r["施設形態"]||'—')+'</td>';
         h += '<td>'+(r["サービス種別"]||'—')+'</td>';
         h += '<td>'+(r["見込み"]||'—')+'</td>';
@@ -834,6 +842,68 @@
       // Facility chart
       h += '<div class="card" style="margin-top:20px"><h3>施設形態別 分布</h3><div class="chart-wrap"><canvas id="chartFacility"></canvas></div></div>';
 
+      // エリア別チャート
+      h += '<div class="card" style="margin-top:20px"><h3>エリア別 案件数</h3><div class="chart-wrap"><canvas id="chartArea"></canvas></div></div>';
+
+      // エリア別ヒートマップ風一覧
+      h += '<div class="card" style="margin-top:20px"><h3>エリア別 ステータス内訳</h3>';
+      var areaMap = {};
+      f.forEach(function(r){
+        var area = r["エリア"] || "未設定";
+        if(!areaMap[area]) areaMap[area] = {"契約（タスタス）":0,"契約（タスワーク）":0,"失注":0,"検討中":0,"商談待ち":0,"合計":0};
+        areaMap[area].合計++;
+        if(r.status==="契約（タスタス）") areaMap[area]["契約（タスタス）"]++;
+        else if(r.status==="契約（タスワーク）") areaMap[area]["契約（タスワーク）"]++;
+        else if(isContract(r.status)) areaMap[area]["契約（タスタス）"]++;
+        else if(r.status==="失注") areaMap[area]["失注"]++;
+        else if(r.status==="検討中") areaMap[area]["検討中"]++;
+        else areaMap[area]["商談待ち"]++;
+      });
+      var areaSorted = Object.keys(areaMap).sort(function(a,b){return areaMap[b].合計-areaMap[a].合計});
+      h += '<div style="overflow-x:auto"><table style="table-layout:auto;font-size:12px"><thead><tr style="background:#f1f5f9">';
+      h += '<th style="cursor:default;min-width:80px">エリア</th>';
+      h += '<th style="cursor:default;text-align:center">合計</th>';
+      h += '<th style="cursor:default;text-align:center;color:#6dd58a">契約(タスタス)</th>';
+      h += '<th style="cursor:default;text-align:center;color:#e88de0">契約(タスワーク)</th>';
+      h += '<th style="cursor:default;text-align:center;color:#f27e7e">失注</th>';
+      h += '<th style="cursor:default;text-align:center;color:#ffc000">検討中</th>';
+      h += '<th style="cursor:default;text-align:center;color:#5b9bd5">商談待ち</th>';
+      h += '<th style="cursor:default;text-align:center;color:#c57edb">受注率</th>';
+      h += '</tr></thead><tbody>';
+      var totalAll={tt:0,tw:0,l:0,k:0,w:0,t:0};
+      areaSorted.forEach(function(area,i){
+        var d = areaMap[area];
+        var c = d["契約（タスタス）"]+d["契約（タスワーク）"];
+        var rate = (c+d["失注"])>0 ? Math.round(c/(c+d["失注"])*100) : 0;
+        totalAll.tt+=d["契約（タスタス）"]; totalAll.tw+=d["契約（タスワーク）"]; totalAll.l+=d["失注"]; totalAll.k+=d["検討中"]; totalAll.w+=d["商談待ち"]; totalAll.t+=d.合計;
+        // ヒートマップ色: 案件数に応じて背景の濃さを変える
+        var maxCount = areaMap[areaSorted[0]].合計;
+        var intensity = Math.round((d.合計/maxCount)*40+10);
+        h += '<tr style="background:rgba(91,155,213,'+intensity/100+')">';
+        h += '<td style="font-weight:600">'+area+'</td>';
+        h += '<td style="text-align:center;font-weight:700">'+d.合計+'</td>';
+        h += '<td style="text-align:center;font-weight:600;color:#6dd58a">'+(d["契約（タスタス）"]||'-')+'</td>';
+        h += '<td style="text-align:center;font-weight:600;color:#e88de0">'+(d["契約（タスワーク）"]||'-')+'</td>';
+        h += '<td style="text-align:center;font-weight:600;color:#f27e7e">'+(d["失注"]||'-')+'</td>';
+        h += '<td style="text-align:center;font-weight:600;color:#ffc000">'+(d["検討中"]||'-')+'</td>';
+        h += '<td style="text-align:center;font-weight:600;color:#5b9bd5">'+(d["商談待ち"]||'-')+'</td>';
+        h += '<td style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:6px"><div style="width:50px;background:#e2e8f0;border-radius:3px;height:6px;overflow:hidden"><div style="width:'+rate+'%;height:100%;background:linear-gradient(90deg,#6dd58a,#5b9bd5);border-radius:3px"></div></div><span style="font-weight:700;color:#c57edb;font-size:11px">'+rate+'%</span></div></td>';
+        h += '</tr>';
+      });
+      // 合計行
+      var totalC=totalAll.tt+totalAll.tw;
+      var totalRate=(totalC+totalAll.l)>0?Math.round(totalC/(totalC+totalAll.l)*100):0;
+      h += '<tr style="border-top:2px solid #334155;background:#f1f5f9;font-weight:700">';
+      h += '<td>合計</td>';
+      h += '<td style="text-align:center">'+totalAll.t+'</td>';
+      h += '<td style="text-align:center;color:#6dd58a">'+totalAll.tt+'</td>';
+      h += '<td style="text-align:center;color:#e88de0">'+totalAll.tw+'</td>';
+      h += '<td style="text-align:center;color:#f27e7e">'+totalAll.l+'</td>';
+      h += '<td style="text-align:center;color:#ffc000">'+totalAll.k+'</td>';
+      h += '<td style="text-align:center;color:#5b9bd5">'+totalAll.w+'</td>';
+      h += '<td style="text-align:center;color:#c57edb">'+totalRate+'%</td>';
+      h += '</tr></tbody></table></div></div>';
+
       // Calendar
       h += '<div class="card" style="margin-top:20px">';
       h += '<h3>商談カレンダー</h3>';
@@ -863,6 +933,29 @@
       f.forEach(function(r){var k=r["施設形態"]||"未分類"; fMap[k]=(fMap[k]||0)+1;});
       var fLabels = Object.keys(fMap).sort(function(a,b){return fMap[b]-fMap[a]});
       createBarChart('chartFacility', fLabels, [{label:'件数',data:fLabels.map(function(l){return fMap[l]}),backgroundColor:'#7c8dba',borderRadius:6}]);
+
+      // エリア別チャート（積み上げ棒グラフ）
+      var aMap = {};
+      f.forEach(function(r){
+        var area = r["エリア"]||"未設定";
+        if(!aMap[area]) aMap[area]={"契約（タスタス）":0,"契約（タスワーク）":0,"失注":0,"検討中":0,"商談待ち":0};
+        if(r.status==="契約（タスタス）") aMap[area]["契約（タスタス）"]++;
+        else if(r.status==="契約（タスワーク）") aMap[area]["契約（タスワーク）"]++;
+        else if(isContract(r.status)) aMap[area]["契約（タスタス）"]++;
+        else if(r.status==="失注") aMap[area]["失注"]++;
+        else if(r.status==="検討中") aMap[area]["検討中"]++;
+        else aMap[area]["商談待ち"]++;
+      });
+      var aLabels = Object.keys(aMap).sort(function(a,b){
+        var ta=0,tb=0; for(var k in aMap[a]) ta+=aMap[a][k]; for(var k in aMap[b]) tb+=aMap[b][k]; return tb-ta;
+      });
+      createBarChart('chartArea', aLabels, [
+        {label:'契約（タスタス）',data:aLabels.map(function(l){return aMap[l]["契約（タスタス）"]}),backgroundColor:'#6dd58a'},
+        {label:'契約（タスワーク）',data:aLabels.map(function(l){return aMap[l]["契約（タスワーク）"]}),backgroundColor:'#e88de0'},
+        {label:'失注',data:aLabels.map(function(l){return aMap[l]["失注"]}),backgroundColor:'#f27e7e'},
+        {label:'検討中',data:aLabels.map(function(l){return aMap[l]["検討中"]}),backgroundColor:'#ffc000'},
+        {label:'商談待ち',data:aLabels.map(function(l){return aMap[l]["商談待ち"]}),backgroundColor:'#5b9bd5'},
+      ], {stacked:true});
     }
 
     // Calendar navigation
