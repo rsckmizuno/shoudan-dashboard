@@ -860,15 +860,15 @@
         else areaMap[area]["商談待ち"]++;
       });
       var areaSorted = Object.keys(areaMap).sort(function(a,b){return areaMap[b].合計-areaMap[a].合計});
-      h += '<div style="overflow-x:auto"><table style="table-layout:auto;font-size:12px"><thead><tr style="background:#f1f5f9">';
-      h += '<th style="cursor:default;min-width:80px">エリア</th>';
-      h += '<th style="cursor:default;text-align:center">合計</th>';
-      h += '<th style="cursor:default;text-align:center">契約(タスタス)</th>';
-      h += '<th style="cursor:default;text-align:center">契約(タスワーク)</th>';
-      h += '<th style="cursor:default;text-align:center">失注</th>';
-      h += '<th style="cursor:default;text-align:center">検討中</th>';
-      h += '<th style="cursor:default;text-align:center">商談待ち</th>';
-      h += '<th style="cursor:default;text-align:center">受注率</th>';
+      h += '<div style="overflow-x:auto"><table style="table-layout:fixed;width:100%;font-size:12px;color:#666"><thead><tr style="background:#f1f5f9">';
+      h += '<th style="cursor:default;width:12%">エリア</th>';
+      h += '<th style="cursor:default;text-align:center;width:10%">合計</th>';
+      h += '<th style="cursor:default;text-align:center;width:12%">契約(タスタス)</th>';
+      h += '<th style="cursor:default;text-align:center;width:12%">契約(タスワーク)</th>';
+      h += '<th style="cursor:default;text-align:center;width:10%">失注</th>';
+      h += '<th style="cursor:default;text-align:center;width:10%">検討中</th>';
+      h += '<th style="cursor:default;text-align:center;width:10%">商談待ち</th>';
+      h += '<th style="cursor:default;text-align:center;width:14%">受注率</th>';
       h += '</tr></thead><tbody>';
       var totalAll={tt:0,tw:0,l:0,k:0,w:0,t:0};
       areaSorted.forEach(function(area,i){
