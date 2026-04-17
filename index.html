@@ -464,6 +464,10 @@
       // Header
       html += '<div class="header"><div class="header-top"><div>';
       html += '<h1>商談管理ダッシュボード</h1>';
+      html += '<div style="display:flex;gap:12px;margin-top:6px">';
+      html += '<a href="https://docs.google.com/spreadsheets/d/13EAObzpxlDaPMMnqTdnzx_ViTGOpjtkTrvGctYQqJt8/edit?resourcekey=&gid=1646108233#gid=1646108233" target="_blank" style="color:#6dd58a;font-size:12px;text-decoration:none;font-weight:600;padding:3px 10px;background:rgba(255,255,255,0.1);border-radius:6px">📋 タスタス申込一覧</a>';
+      html += '<a href="https://docs.google.com/spreadsheets/d/11XF-lsmsrMq3GDNipnx19RvUEp51qRuc2QCfbnFbbis/edit?resourcekey=&gid=1091832548#gid=1091832548" target="_blank" style="color:#e88de0;font-size:12px;text-decoration:none;font-weight:600;padding:3px 10px;background:rgba(255,255,255,0.1);border-radius:6px">📋 タスワーク申込一覧</a>';
+      html += '</div>';
       html += '<div class="header-sub"><span class="dot '+(state.error?'dot-err':'dot-ok')+'"></span> ';
       html += state.lastFetched ? '最終更新: '+state.lastFetched.toLocaleTimeString('ja-JP') : '取得中...';
       html += ' <span style="opacity:0.7">（5分毎に自動更新）</span>';
